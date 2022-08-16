@@ -87,6 +87,7 @@ endif(NOT USE_SYSTEM_LIBS)
 
 add_subdirectory(src/libkcf)
 add_subdirectory(src/libopentld)
+add_subdirectory(src/libmultitrack)
 add_subdirectory(src/opentld)
 add_subdirectory(src/testVid)
 
