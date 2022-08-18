@@ -29,6 +29,7 @@
 
 #include <opencv/cv.h>
 #include <vector>
+#include <set>
 
 #include "MedianFlowTracker.h"
 #include "KCFTracker.h"
@@ -39,18 +40,20 @@ namespace tld
 
 class MultiTrack
 {
-    typedef struct Target_t
-    {
-        cv::Rect currBB;
-        KCF::KCFTracker tracker;
-        float currConf;
-        bool valid;
-    } Target_t;
+  typedef struct Target_t
+  {
+      cv::Rect *currBB,
+               *prevBB;
+      DetectorCascade *detectorCascade;
+      KCF::KCFTracker *tracker;
+      float currConf;
+      bool valid,
+           wasValid,
+           learning;
+      NNClassifier *nnClassifier;
+      int targetNumber;
+  } Target_t;
 
-    void storeCurrentData();
-    void fuseHypotheses();
-    void learn();
-    void initialLearning();
   public:
     bool trackerEnabled;
     bool detectorEnabled;
@@ -58,28 +61,30 @@ class MultiTrack
     bool alternating;
 
 //    MedianFlowTracker *medianFlowTracker;
-    KCF::KCFTracker *kcfTracker;
-    std::vector<Target_t> targets;
-    DetectorCascade *detectorCascade;
-    NNClassifier *nnClassifier;
-    bool valid;
-    bool wasValid;
+//    KCF::KCFTracker *kcfTracker;
+    std::vector<Target_t *> targets;
     cv::Mat prevImg;
     cv::Mat currImg;
-    cv::Rect *prevBB;
-    cv::Rect *currBB;
-    float currConf;
-    bool learning;
 
     MultiTrack();
     virtual ~MultiTrack();
     void release();
-    void selectObject(const cv::Mat &img, cv::Rect *bb);
+//    void selectObject(const cv::Mat &img, cv::Rect *bb);
     void init(const cv::Mat &img, cv::Rect *bb);
     void addTarget(cv::Rect *bb);
     void processImage(const cv::Mat &img);
+    std::vector<std::pair<cv::Rect, int>> getResults();
     void writeToFile(const char *path);
     void readFromFile(const char *path);
+
+    private:
+
+      void storeCurrentData();
+      void storeCurrentTarget(Target_t *t);
+      void fuseHypotheses(Target_t *t);
+      void learn(Target_t *t);
+  //    void initialLearning();
+      void initialLearning(Target_t *t);
 };
 
 } /* namespace tld */

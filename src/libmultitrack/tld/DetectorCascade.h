@@ -43,10 +43,7 @@ static const int TLD_WINDOW_OFFSET_SIZE = 6;
 
 class DetectorCascade
 {
-    //Working data
-    int numScales;
-    cv::Size *scales;
-public:
+  public:
     //Configurable members
     int minScale;
     int maxScale;
@@ -62,6 +59,9 @@ public:
     int imgWidthStep;
     int objWidth;
     int objHeight;
+    void calcMeanRect(std::vector<int> * indices);
+    void calcDistances(float *distances);
+    void cluster(float *distances, int *clusterIndices);
 
     int numWindows;
     int *windows;
@@ -92,6 +92,11 @@ public:
     void release();
     void cleanPreviousData();
     void detect(const cv::Mat &img);
+
+  private:
+    //Working data
+    int numScales;
+    cv::Size *scales;
 };
 
 } /* namespace tld */

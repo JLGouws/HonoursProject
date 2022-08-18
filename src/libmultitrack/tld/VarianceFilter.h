@@ -36,9 +36,6 @@ namespace tld
 
 class VarianceFilter
 {
-    IntegralImage<int>* integralImg;
-    IntegralImage<long long>* integralImg_squared;
-
 public:
     bool enabled;
     int *windowOffsets;
@@ -54,6 +51,10 @@ public:
     void nextIteration(const cv::Mat &img);
     bool filter(int idx);
     float calcVariance(int *off);
+private:
+    IntegralImage<int>* integralImg;
+    IntegralImage<long long>* integralImg_squared;
+
 };
 
 } /* namespace tld */

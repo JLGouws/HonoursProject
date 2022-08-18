@@ -7,6 +7,7 @@ include_directories(main
     ../libopentld/tld
     ../3rdparty/cvblobs
     ../libkcf
+    ../libmultitrack/tld
     ${OpenCV_INCLUDE_DIRS})
 
 if(NOT USE_SYSTEM_LIBS)
@@ -18,6 +19,9 @@ endif(NOT USE_SYSTEM_LIBS)
 add_executable(vidDemo
     vidDemo.cpp)
 
+add_executable(multitest
+    multitest.cpp)
+
 add_executable(OTBtest
     runTLD.cpp
     videoHandler.hpp)
@@ -25,6 +29,8 @@ add_executable(OTBtest
 target_link_libraries(vidDemo main libopentld cvblobs config++ kcf ${OpenCV_LIBS})
 
 target_link_libraries(OTBtest main libopentld cvblobs config++ kcf ${OpenCV_LIBS})
+
+target_link_libraries(multitest main libopentld libmultitrack cvblobs config++ kcf ${OpenCV_LIBS})
 
 install(TARGETS vidDemo DESTINATION bin)
 

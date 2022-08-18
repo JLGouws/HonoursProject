@@ -33,13 +33,7 @@ namespace tld
 
 class EnsembleClassifier
 {
-    const unsigned char *img;
-
-    float calcConfidence(int *featureVector);
-    int calcFernFeature(int windowIdx, int treeIdx);
-    void calcFeatureVector(int windowIdx, int *featureVector);
-    void updatePosteriors(int *featureVector, int positive, int amount);
-public:
+  public:
     bool enabled;
 
     //Configurable members
@@ -74,6 +68,14 @@ public:
     void updatePosterior(int treeIdx, int idx, int positive, int amount);
     void learn(int *boundary, int positive, int *featureVector);
     bool filter(int i);
+
+  private:
+    const unsigned char *img;
+
+    float calcConfidence(int *featureVector);
+    int calcFernFeature(int windowIdx, int treeIdx);
+    void calcFeatureVector(int windowIdx, int *featureVector);
+    void updatePosteriors(int *featureVector, int positive, int amount);
 };
 
 } /* namespace tld */

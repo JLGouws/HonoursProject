@@ -37,9 +37,6 @@ namespace tld
 
 class Clustering
 {
-    void calcMeanRect(std::vector<int> * indices);
-    void calcDistances(float *distances);
-    void cluster(float *distances, int *clusterIndices);
 public:
     int *windows;
     int numWindows;
@@ -55,6 +52,10 @@ public:
     virtual ~Clustering();
     void release();
     void clusterConfidentIndices();
+private:
+    void calcMeanRect(std::vector<int> * indices);
+    void calcDistances(float *distances);
+    void cluster(float *distances, int *clusterIndices);
 };
 
 } /* namespace tld */

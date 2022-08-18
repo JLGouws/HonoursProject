@@ -44,231 +44,236 @@ MultiTrack::MultiTrack()
     detectorEnabled = true;
     learningEnabled = true;
     alternating = false;
-    valid = false;
-    wasValid = false;
-    learning = false;
-    currBB = NULL;
-    prevBB = new Rect(0,0,0,0);
-
-    detectorCascade = new DetectorCascade();
-    nnClassifier = detectorCascade->nnClassifier;
-
-    kcfTracker = new KCFTracker();//medianFlowTracker = new MedianFlowTracker();
 }
 
 MultiTrack::~MultiTrack()
 {
     storeCurrentData();
 
-    if(currBB)
-    {
-        delete currBB;
-        currBB = NULL;
-    }
+    for (auto const& t : targets) {
+      if(t->detectorCascade)
+      {
+          delete t->detectorCascade;
+          t->detectorCascade = NULL;
+      }
 
-    if(detectorCascade)
-    {
-        delete detectorCascade;
-        detectorCascade = NULL;
-    }
+      if(t->currBB)
+      {
+          delete t->currBB;
+          t->currBB = NULL;
+      }
 
-    /*if(medianFlowTracker)
-    {
-        delete medianFlowTracker;
-        medianFlowTracker = NULL;
-    }*/
-    if(kcfTracker)
-    {
-        delete kcfTracker;
-        kcfTracker = NULL;
-    }
+      if(t->tracker)
+      {
+          delete t->tracker;
+          t->tracker= NULL;
+      }
 
-    if(prevBB)
-    {
-        delete prevBB;
-        prevBB = NULL;
+      if(t->prevBB)
+      {
+          delete t->prevBB;
+          t->prevBB = NULL;
+      }
+
     }
+    targets.clear();
 }
 
 void MultiTrack::release()
 {
-    detectorCascade->release();
-    kcfTracker->cleanPreviousData();//medianFlowTracker->cleanPreviousData();
-
-    if(currBB)
-    {
-        delete currBB;
-        currBB = NULL;
+    for (auto const& t : targets) {
+      t->detectorCascade->release();
+      t->tracker->cleanPreviousData();//medianFlowTracker->cleanPreviousData();
+      if(t->currBB)
+      {
+          delete t->currBB;
+          t->currBB = NULL;
+      }
     }
+
 }
 
 void MultiTrack::storeCurrentData()
 {
     prevImg.release();
     prevImg = currImg; //Store old image (if any)
-    if(currBB)//Store old bounding box (if any)
+    for (auto const& t : targets) {
+      if(t->currBB)//Store old bounding box (if any)
+      {
+          t->prevBB->x = t->currBB->x;
+          t->prevBB->y = t->currBB->y;
+          t->prevBB->width = t->currBB->width;
+          t->prevBB->height = t->currBB->height;
+      }
+      else
+      {
+          t->prevBB->x = 0;
+          t->prevBB->y = 0;
+          t->prevBB->width = 0;
+          t->prevBB->height = 0;
+      }
+
+      t->detectorCascade->cleanPreviousData(); //Reset detector results
+      t->tracker->cleanPreviousData();//medianFlowTracker->cleanPreviousData();
+
+      t->wasValid = t->valid;
+    }
+}
+void MultiTrack::storeCurrentTarget(Target_t *t)
+{
+    if(t->currBB)//Store old bounding box (if any)
     {
-        prevBB->x = currBB->x;
-        prevBB->y = currBB->y;
-        prevBB->width = currBB->width;
-        prevBB->height = currBB->height;
+        t->prevBB->x = t->currBB->x;
+        t->prevBB->y = t->currBB->y;
+        t->prevBB->width = t->currBB->width;
+        t->prevBB->height = t->currBB->height;
     }
     else
     {
-        prevBB->x = 0;
-        prevBB->y = 0;
-        prevBB->width = 0;
-        prevBB->height = 0;
+        t->prevBB->x = 0;
+        t->prevBB->y = 0;
+        t->prevBB->width = 0;
+        t->prevBB->height = 0;
     }
 
-    detectorCascade->cleanPreviousData(); //Reset detector results
-    kcfTracker->cleanPreviousData();//medianFlowTracker->cleanPreviousData();
+    t->detectorCascade->cleanPreviousData(); //Reset detector results
+    t->tracker->cleanPreviousData();//medianFlowTracker->cleanPreviousData();
 
-    wasValid = valid;
-}
-
-void MultiTrack::selectObject(const Mat &img, Rect *bb)
-{
-    //Delete old object
-    detectorCascade->release();
-
-    detectorCascade->objWidth = bb->width;
-    detectorCascade->objHeight = bb->height;
-
-    //Init detector cascade
-    detectorCascade->init();
-
-    currImg = img;
-    if(currBB)
-    {
-        delete currBB;
-        currBB = NULL;
-    }
-    kcfTracker->init(img, *bb);
-    currBB = tldCopyRect(bb);
-    currConf = 1;
-    valid = true;
-
-    initialLearning();
-
+    t->wasValid = t->valid;
 }
 
 void MultiTrack::init(const Mat &img, Rect *bb)
 {
-    //Delete old object
-    detectorCascade->release();
-
-    detectorCascade->objWidth = bb->width;
-    detectorCascade->objHeight = bb->height;
-
-    //Init detector cascade
-    detectorCascade->init();
-
     targets.clear();
 
-    currImg = img;
+    currImg = Mat(img.rows, img.cols, CV_8UC1);         
+    cvtColor(img, currImg, CV_BGR2GRAY);
 
     addTarget(bb);
-
-    initialLearning();
 }
 
 void MultiTrack::addTarget(Rect *bb)
 {
-    Target_t tg;
-    tg.tracker = KCFTracker();
-    tg.tracker.init(currImg, *bb);
-    tg.currBB = Rect(bb->x, bb->y, bb->width, bb->height);
-    tg.currConf = 1;
-    tg.valid = true;
+    Target_t *tg = new Target_t();
+    tg->tracker = new KCFTracker();
+    tg->detectorCascade = new DetectorCascade();
+    tg->detectorCascade->release();
+    tg->detectorCascade->objWidth = bb->width;
+    tg->detectorCascade->objHeight = bb->height;
+    tg->detectorCascade->imgWidth = currImg.cols;
+    tg->detectorCascade->imgHeight = currImg.rows;
+    tg->detectorCascade->imgWidthStep = currImg.step;
+    tg->detectorCascade->init();
+    tg->nnClassifier = tg->detectorCascade->nnClassifier;
+    tg->tracker->init(currImg, *bb);
+    tg->currBB = new Rect(bb->x, bb->y, bb->width, bb->height);
+    tg->prevBB = new Rect(0, 0, 0, 0);
+    tg->currConf = 1;
+    tg->learning = false;
+    tg->valid = true;
+    tg->wasValid = false;
+    tg->targetNumber = targets.size();
     targets.push_back(tg);
 
-    initialLearning();
+    initialLearning(tg);
 }
 
 void MultiTrack::processImage(const Mat &img)
 {
-    storeCurrentData();
+    prevImg.release();
+    prevImg = currImg; //Store old image (if any)
     Mat grey_frame;
     cvtColor(img, grey_frame, CV_BGR2GRAY);
     currImg = grey_frame; // Store new image , right after storeCurrentData();
 
-    if(trackerEnabled)
-    {
-        kcfTracker->track(currImg, prevBB);//medianFlowTracker->track(prevImg, currImg, prevBB);
+    for (auto const& t : targets) {
+      storeCurrentTarget(t);
+
+      if(trackerEnabled)
+      {
+          t->tracker->track(currImg, t->prevBB);//t->tracker->track(currImg, t->prevBB);//medianFlowTracker->track(prevImg, currImg, prevBB);
+      }
+
+      if(detectorEnabled && (!alternating || t->tracker->trackerBB == NULL))//medianFlowTracker->trackerBB == NULL))
+      {
+          t->detectorCascade->detect(grey_frame);
+      }
+
+      fuseHypotheses(t);
+
+      learn(t);
     }
-
-    if(detectorEnabled && (!alternating || kcfTracker->trackerBB == NULL))//medianFlowTracker->trackerBB == NULL))
-    {
-        detectorCascade->detect(grey_frame);
-    }
-
-    fuseHypotheses();
-
-    learn();
-
 }
 
-void MultiTrack::fuseHypotheses()
+vector<pair<Rect, int>> MultiTrack::getResults()
 {
-    Rect *trackerBB = kcfTracker->trackerBB;//Rect *trackerBB = medianFlowTracker->trackerBB;
-    int numClusters = detectorCascade->detectionResult->numClusters;
-    Rect *detectorBB = detectorCascade->detectionResult->detectorBB;
+  vector<pair<Rect, int>> results;
+  for (auto const& t : targets) {
+    if(t->currBB != NULL)
+      results.push_back(pair<Rect, int>(*t->currBB, t->targetNumber));
+  }
+  return results;
+}
 
-    if(currBB)
+void MultiTrack::fuseHypotheses(Target_t *t)
+{
+    Rect *trackerBB = t->tracker->trackerBB;//Rect *trackerBB = medianFlowTracker->trackerBB;
+    int numClusters = t->detectorCascade->detectionResult->numClusters;
+    Rect *detectorBB = t->detectorCascade->detectionResult->detectorBB;
+
+    if(t->currBB)
     {
-        delete currBB;
-        currBB = NULL;
+        delete t->currBB;
+        t->currBB = NULL;
     }
-    currConf = 0;
-    valid = false;
+    t->currConf = 0;
+    t->valid = false;
 
     float confDetector = 0;
 
     if(numClusters == 1)
     {
-        confDetector = nnClassifier->classifyBB(currImg, detectorBB);
+        confDetector = t->nnClassifier->classifyBB(currImg, detectorBB);
     }
 
     if(trackerBB != NULL)
     {
-        float confTracker = nnClassifier->classifyBB(currImg, trackerBB);
-        if(currBB)
+        float confTracker = t->nnClassifier->classifyBB(currImg, trackerBB);
+        if(t->currBB)
         {
-            delete currBB;
-            currBB = NULL;
+            delete t->currBB;
+            t->currBB = NULL;
         }
 
         if(numClusters == 1 && confDetector > confTracker && tldOverlapRectRect(*trackerBB, *detectorBB) < 0.5)
         {
-
-            currBB = tldCopyRect(detectorBB);
-            currConf = confDetector;
+            t->currBB = tldCopyRect(detectorBB);
+            t->currConf = confDetector;
         }
         else
         {
-            currBB = tldCopyRect(trackerBB);
-            currConf = confTracker;
+            t->currBB = tldCopyRect(trackerBB);
+            t->currConf = confTracker;
 
-            if(confTracker > nnClassifier->thetaTP)
+            if(confTracker > t->nnClassifier->thetaTP)
             {
-                valid = true;
+                t->valid = true;
             }
-            else if(wasValid && confTracker > nnClassifier->thetaFP)
+            else if(t->wasValid && confTracker > t->nnClassifier->thetaFP)
             {
-                valid = true;
+                t->valid = true;
             }
         }
     }
     else if(numClusters == 1)
     {
-        if(currBB)
+        if(t->currBB)
         {
-            delete currBB;
-            currBB = NULL;
+            delete t->currBB;
+            t->currBB = NULL;
         }
-        currBB = tldCopyRect(detectorBB);
-        currConf = confDetector;
+        t->currBB = tldCopyRect(detectorBB);
+        t->currConf = confDetector;
     }
 
     /*
@@ -280,6 +285,89 @@ void MultiTrack::fuseHypotheses()
     }*/
 }
 
+void MultiTrack::initialLearning(Target_t *t)
+{
+    t->learning = true; //This is just for display purposes
+
+    DetectionResult *detectionResult = t->detectorCascade->detectionResult;
+
+    t->detectorCascade->detect(currImg);
+
+    //This is the positive patch
+    NormalizedPatch patch;
+    tldExtractNormalizedPatchRect(currImg, t->currBB, patch.values);
+    patch.positive = 1;
+
+    float initVar = tldCalcVariance(patch.values, TLD_PATCH_SIZE * TLD_PATCH_SIZE);
+    t->detectorCascade->varianceFilter->minVar = initVar / 2;
+
+
+    float *overlap = new float[t->detectorCascade->numWindows];
+    tldOverlapRect(t->detectorCascade->windows, t->detectorCascade->numWindows, t->currBB, overlap);
+
+    //Add all bounding boxes with high overlap
+
+    vector< pair<int, float>> positiveIndices;
+    vector<int> negativeIndices;
+
+    //First: Find overlapping positive and negative patches
+
+    for(int i = 0; i < t->detectorCascade->numWindows; i++)
+    {
+
+        if(overlap[i] > 0.6)
+        {
+            positiveIndices.push_back(pair<int, float>(i, overlap[i]));
+        }
+
+        if(overlap[i] < 0.2)
+        {
+            float variance = detectionResult->variances[i];
+
+            if(!t->detectorCascade->varianceFilter->enabled || variance > t->detectorCascade->varianceFilter->minVar)   //TODO: This check is unnecessary if minVar would be set before calling detect.
+            {
+                negativeIndices.push_back(i);
+            }
+        }
+    }
+
+    sort(positiveIndices.begin(), positiveIndices.end(), tldSortByOverlapDesc);
+
+    vector<NormalizedPatch> patches;
+
+    patches.push_back(patch); //Add first patch to patch list
+
+    int numIterations = std::min<size_t>(positiveIndices.size(), 10); //Take at most 10 bounding boxes (sorted by overlap)
+
+    for(int i = 0; i < numIterations; i++)
+    {
+        int idx = positiveIndices.at(i).first;
+        //Learn this bounding box
+        //TODO: Somewhere here image warping might be possible
+        t->detectorCascade->ensembleClassifier->learn(&t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], true, &detectionResult->featureVectors[t->detectorCascade->numTrees * idx]);
+    }
+
+    srand(1); //TODO: This is not guaranteed to affect random_shuffle
+
+    random_shuffle(negativeIndices.begin(), negativeIndices.end());
+
+    //Choose 100 random patches for negative examples
+    for(size_t i = 0; i < std::min<size_t>(100, negativeIndices.size()); i++)
+    {
+        int idx = negativeIndices.at(i);
+
+        NormalizedPatch patch;
+        tldExtractNormalizedPatchBB(currImg, &t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
+        patch.positive = 0;
+        patches.push_back(patch);
+    }
+
+    t->detectorCascade->nnClassifier->learn(patches);
+
+    delete[] overlap;
+
+}
+/*
 void MultiTrack::initialLearning()
 {
     learning = true; //This is just for display purposes
@@ -362,31 +450,32 @@ void MultiTrack::initialLearning()
     delete[] overlap;
 
 }
+*/
 
 //Do this when current trajectory is valid
-void MultiTrack::learn()
+void MultiTrack::learn(Target_t *t)
 {
-    if(!learningEnabled || !valid || !detectorEnabled)
+    if(!learningEnabled || !t->valid || !detectorEnabled)
     {
-        learning = false;
+        t->learning = false;
         return;
     }
 
-    learning = true;
+    t->learning = true;
 
-    DetectionResult *detectionResult = detectorCascade->detectionResult;
+    DetectionResult *detectionResult = t->detectorCascade->detectionResult;
 
     if(!detectionResult->containsValidData)
     {
-        detectorCascade->detect(currImg);
+        t->detectorCascade->detect(currImg);
     }
 
     //This is the positive patch
     NormalizedPatch patch;
-    tldExtractNormalizedPatchRect(currImg, currBB, patch.values);
+    tldExtractNormalizedPatchRect(currImg, t->currBB, patch.values);
 
-    float *overlap = new float[detectorCascade->numWindows];
-    tldOverlapRect(detectorCascade->windows, detectorCascade->numWindows, currBB, overlap);
+    float *overlap = new float[t->detectorCascade->numWindows];
+    tldOverlapRect(t->detectorCascade->windows, t->detectorCascade->numWindows, t->currBB, overlap);
 
     //Add all bounding boxes with high overlap
 
@@ -396,7 +485,7 @@ void MultiTrack::learn()
 
     //First: Find overlapping positive and negative patches
 
-    for(int i = 0; i < detectorCascade->numWindows; i++)
+    for(int i = 0; i < t->detectorCascade->numWindows; i++)
     {
 
         if(overlap[i] > 0.6)
@@ -406,12 +495,12 @@ void MultiTrack::learn()
 
         if(overlap[i] < 0.2)
         {
-            if(!detectorCascade->ensembleClassifier->enabled || detectionResult->posteriors[i] > 0.5)   //Should be 0.5 according to the paper
+            if(!t->detectorCascade->ensembleClassifier->enabled || detectionResult->posteriors[i] > 0.5)   //Should be 0.5 according to the paper
             {
                 negativeIndices.push_back(i);
             }
 
-            if(!detectorCascade->ensembleClassifier->enabled || detectionResult->posteriors[i] > 0.5)
+            if(!t->detectorCascade->ensembleClassifier->enabled || detectionResult->posteriors[i] > 0.5)
             {
                 negativeIndicesForNN.push_back(i);
             }
@@ -427,14 +516,13 @@ void MultiTrack::learn()
     patches.push_back(patch);
     //TODO: Flip
 
-
     int numIterations = std::min<size_t>(positiveIndices.size(), 10); //Take at most 10 bounding boxes (sorted by overlap)
 
     for(size_t i = 0; i < negativeIndices.size(); i++)
     {
         int idx = negativeIndices.at(i);
         //TODO: Somewhere here image warping might be possible
-        detectorCascade->ensembleClassifier->learn(&detectorCascade->windows[TLD_WINDOW_SIZE * idx], false, &detectionResult->featureVectors[detectorCascade->numTrees * idx]);
+        t->detectorCascade->ensembleClassifier->learn(&t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], false, &detectionResult->featureVectors[t->detectorCascade->numTrees * idx]);
     }
 
     //TODO: Randomization might be a good idea
@@ -442,7 +530,7 @@ void MultiTrack::learn()
     {
         int idx = positiveIndices.at(i).first;
         //TODO: Somewhere here image warping might be possible
-        detectorCascade->ensembleClassifier->learn(&detectorCascade->windows[TLD_WINDOW_SIZE * idx], true, &detectionResult->featureVectors[detectorCascade->numTrees * idx]);
+        t->detectorCascade->ensembleClassifier->learn(&t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], true, &detectionResult->featureVectors[t->detectorCascade->numTrees * idx]);
     }
 
     for(size_t i = 0; i < negativeIndicesForNN.size(); i++)
@@ -450,12 +538,12 @@ void MultiTrack::learn()
         int idx = negativeIndicesForNN.at(i);
 
         NormalizedPatch patch;
-        tldExtractNormalizedPatchBB(currImg, &detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
+        tldExtractNormalizedPatchBB(currImg, &t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
         patch.positive = 0;
         patches.push_back(patch);
     }
 
-    detectorCascade->nnClassifier->learn(patches);
+    t->detectorCascade->nnClassifier->learn(patches);
 
     //cout << "NN has now " << detectorCascade->nnClassifier->truePositives->size() << " positives and " << detectorCascade->nnClassifier->falsePositives->size() << " negatives.\n";
 
@@ -471,101 +559,110 @@ typedef struct
 
 void MultiTrack::writeToFile(const char *path)
 {
-    NNClassifier *nn = detectorCascade->nnClassifier;
-    EnsembleClassifier *ec = detectorCascade->ensembleClassifier;
+    NNClassifier *nn;       
+    EnsembleClassifier *ec; 
 
     FILE *file = fopen(path, "w");
     fprintf(file, "#Tld ModelExport\n");
-    fprintf(file, "%d #width\n", detectorCascade->objWidth);
-    fprintf(file, "%d #height\n", detectorCascade->objHeight);
-    fprintf(file, "%f #min_var\n", detectorCascade->varianceFilter->minVar);
-    fprintf(file, "%d #Positive Sample Size\n", nn->truePositives->size());
-
-
-
-    for(size_t s = 0; s < nn->truePositives->size(); s++)
+    for (auto const& t : targets) 
     {
-        float *imageData = nn->truePositives->at(s).values;
+        nn = t->detectorCascade->nnClassifier;
+        ec = t->detectorCascade->ensembleClassifier;
+        fprintf(file, "%d #Target number\n", t->targetNumber);
+        fprintf(file, "%d #width\n", t->detectorCascade->objWidth);
+        fprintf(file, "%d #height\n", t->detectorCascade->objHeight);
+        fprintf(file, "%f #min_var\n", t->detectorCascade->varianceFilter->minVar);
+        fprintf(file, "%d #Positive Sample Size\n", nn->truePositives->size());
 
-        for(int i = 0; i < TLD_PATCH_SIZE; i++)
+
+
+        for(size_t s = 0; s < nn->truePositives->size(); s++)
         {
-            for(int j = 0; j < TLD_PATCH_SIZE; j++)
+            float *imageData = nn->truePositives->at(s).values;
+
+            for(int i = 0; i < TLD_PATCH_SIZE; i++)
             {
-                fprintf(file, "%f ", imageData[i * TLD_PATCH_SIZE + j]);
-            }
+                for(int j = 0; j < TLD_PATCH_SIZE; j++)
+                {
+                    fprintf(file, "%f ", imageData[i * TLD_PATCH_SIZE + j]);
+                }
 
-            fprintf(file, "\n");
-        }
-    }
-
-    fprintf(file, "%d #Negative Sample Size\n", nn->falsePositives->size());
-
-    for(size_t s = 0; s < nn->falsePositives->size(); s++)
-    {
-        float *imageData = nn->falsePositives->at(s).values;
-
-        for(int i = 0; i < TLD_PATCH_SIZE; i++)
-        {
-            for(int j = 0; j < TLD_PATCH_SIZE; j++)
-            {
-                fprintf(file, "%f ", imageData[i * TLD_PATCH_SIZE + j]);
-            }
-
-            fprintf(file, "\n");
-        }
-    }
-
-    fprintf(file, "%d #numtrees\n", ec->numTrees);
-    detectorCascade->numTrees = ec->numTrees;
-    fprintf(file, "%d #numFeatures\n", ec->numFeatures);
-    detectorCascade->numFeatures = ec->numFeatures;
-
-    for(int i = 0; i < ec->numTrees; i++)
-    {
-        fprintf(file, "#Tree %d\n", i);
-
-        for(int j = 0; j < ec->numFeatures; j++)
-        {
-            float *features = ec->features + 4 * ec->numFeatures * i + 4 * j;
-            fprintf(file, "%f %f %f %f # Feature %d\n", features[0], features[1], features[2], features[3], j);
-        }
-
-        //Collect indices
-        vector<TldExportEntry> list;
-
-        for(int index = 0; index < pow(2.0f, ec->numFeatures); index++)
-        {
-            int p = ec->positives[i * ec->numIndices + index];
-
-            if(p != 0)
-            {
-                TldExportEntry entry;
-                entry.index = index;
-                entry.P = p;
-                entry.N = ec->negatives[i * ec->numIndices + index];
-                list.push_back(entry);
+                fprintf(file, "\n");
             }
         }
 
-        fprintf(file, "%d #numLeaves\n", list.size());
+        fprintf(file, "%d #Negative Sample Size\n", nn->falsePositives->size());
 
-        for(size_t j = 0; j < list.size(); j++)
+        for(size_t s = 0; s < nn->falsePositives->size(); s++)
         {
-            TldExportEntry entry = list.at(j);
-            fprintf(file, "%d %d %d\n", entry.index, entry.P, entry.N);
+            float *imageData = nn->falsePositives->at(s).values;
+
+            for(int i = 0; i < TLD_PATCH_SIZE; i++)
+            {
+                for(int j = 0; j < TLD_PATCH_SIZE; j++)
+                {
+                    fprintf(file, "%f ", imageData[i * TLD_PATCH_SIZE + j]);
+                }
+
+                fprintf(file, "\n");
+            }
+        }
+
+        fprintf(file, "%d #numtrees\n", ec->numTrees);
+        t->detectorCascade->numTrees = ec->numTrees;
+        fprintf(file, "%d #numFeatures\n", ec->numFeatures);
+        t->detectorCascade->numFeatures = ec->numFeatures;
+
+        for(int i = 0; i < ec->numTrees; i++)
+        {
+            fprintf(file, "#Tree %d\n", i);
+
+            for(int j = 0; j < ec->numFeatures; j++)
+            {
+                float *features = ec->features + 4 * ec->numFeatures * i + 4 * j;
+                fprintf(file, "%f %f %f %f # Feature %d\n", features[0], features[1], features[2], features[3], j);
+            }
+
+            //Collect indices
+            vector<TldExportEntry> list;
+
+            for(int index = 0; index < pow(2.0f, ec->numFeatures); index++)
+            {
+                int p = ec->positives[i * ec->numIndices + index];
+
+                if(p != 0)
+                {
+                    TldExportEntry entry;
+                    entry.index = index;
+                    entry.P = p;
+                    entry.N = ec->negatives[i * ec->numIndices + index];
+                    list.push_back(entry);
+                }
+            }
+
+            fprintf(file, "%d #numLeaves\n", list.size());
+
+            for(size_t j = 0; j < list.size(); j++)
+            {
+                TldExportEntry entry = list.at(j);
+                fprintf(file, "%d %d %d\n", entry.index, entry.P, entry.N);
+            }
         }
     }
-
     fclose(file);
 
+}
+
+static int fpeek(FILE *stream)
+{
+  int c = fgetc(stream);
+  ungetc(c, stream);
+  return c;
 }
 
 void MultiTrack::readFromFile(const char *path)
 {
     release();
-
-    NNClassifier *nn = detectorCascade->nnClassifier;
-    EnsembleClassifier *ec = detectorCascade->ensembleClassifier;
 
     FILE *file = fopen(path, "r");
 
@@ -579,124 +676,136 @@ void MultiTrack::readFromFile(const char *path)
     char str_buf[255];
     fgets(str_buf, MAX_LEN, file); /*Skip line*/
 
-    fscanf(file, "%d \n", &detectorCascade->objWidth);
-    fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
-    fscanf(file, "%d \n", &detectorCascade->objHeight);
-    fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
-
-    fscanf(file, "%f \n", &detectorCascade->varianceFilter->minVar);
-    fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
-
-    int numPositivePatches;
-    fscanf(file, "%d \n", &numPositivePatches);
-    fgets(str_buf, MAX_LEN, file); /*Skip line*/
-
-
-    for(int s = 0; s < numPositivePatches; s++)
+    while (fpeek(file) != EOF)
     {
-        NormalizedPatch patch;
+      Target_t *t = new Target_t();
 
-        for(int i = 0; i < 15; i++)   //Do 15 times
-        {
+      t->detectorCascade = new DetectorCascade();
 
-            fgets(str_buf, MAX_LEN, file); /*Read sample*/
+      NNClassifier *nn = t->detectorCascade->nnClassifier;
+      EnsembleClassifier *ec = t->detectorCascade->ensembleClassifier;
 
-            char *pch;
-            pch = strtok(str_buf, " \n");
-            int j = 0;
+      fscanf(file, "%d \n", &t->targetNumber);
+      fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
+      fscanf(file, "%d \n", &t->detectorCascade->objWidth);
+      fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
+      fscanf(file, "%d \n", &t->detectorCascade->objHeight);
+      fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
 
-            while(pch != NULL)
-            {
-                float val = atof(pch);
-                patch.values[i * TLD_PATCH_SIZE + j] = val;
+      fscanf(file, "%f \n", &t->detectorCascade->varianceFilter->minVar);
+      fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
 
-                pch = strtok(NULL, " \n");
+      int numPositivePatches;
+      fscanf(file, "%d \n", &numPositivePatches);
+      fgets(str_buf, MAX_LEN, file); /*Skip line*/
 
-                j++;
-            }
-        }
 
-        nn->truePositives->push_back(patch);
+      for(int s = 0; s < numPositivePatches; s++)
+      {
+          NormalizedPatch patch;
+
+          for(int i = 0; i < 15; i++)   //Do 15 times
+          {
+
+              fgets(str_buf, MAX_LEN, file); /*Read sample*/
+
+              char *pch;
+              pch = strtok(str_buf, " \n");
+              int j = 0;
+
+              while(pch != NULL)
+              {
+                  float val = atof(pch);
+                  patch.values[i * TLD_PATCH_SIZE + j] = val;
+
+                  pch = strtok(NULL, " \n");
+
+                  j++;
+              }
+          }
+
+          nn->truePositives->push_back(patch);
+      }
+
+      int numNegativePatches;
+      fscanf(file, "%d \n", &numNegativePatches);
+      fgets(str_buf, MAX_LEN, file); /*Skip line*/
+
+
+      for(int s = 0; s < numNegativePatches; s++)
+      {
+          NormalizedPatch patch;
+
+          for(int i = 0; i < 15; i++)   //Do 15 times
+          {
+
+              fgets(str_buf, MAX_LEN, file); /*Read sample*/
+
+              char *pch;
+              pch = strtok(str_buf, " \n");
+              int j = 0;
+
+              while(pch != NULL)
+              {
+                  float val = atof(pch);
+                  patch.values[i * TLD_PATCH_SIZE + j] = val;
+
+                  pch = strtok(NULL, " \n");
+
+                  j++;
+              }
+          }
+
+          nn->falsePositives->push_back(patch);
+      }
+
+      fscanf(file, "%d \n", &ec->numTrees);
+      t->detectorCascade->numTrees = ec->numTrees;
+      fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
+
+      fscanf(file, "%d \n", &ec->numFeatures);
+      t->detectorCascade->numFeatures = ec->numFeatures;
+      fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
+
+      int size = 2 * 2 * ec->numFeatures * ec->numTrees;
+      ec->features = new float[size];
+      ec->numIndices = pow(2.0f, ec->numFeatures);
+      ec->initPosteriors();
+
+      for(int i = 0; i < ec->numTrees; i++)
+      {
+          fgets(str_buf, MAX_LEN, file); /*Skip line*/
+
+          for(int j = 0; j < ec->numFeatures; j++)
+          {
+              float *features = ec->features + 4 * ec->numFeatures * i + 4 * j;
+              fscanf(file, "%f %f %f %f", &features[0], &features[1], &features[2], &features[3]);
+              fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
+          }
+
+          /* read number of leaves*/
+          int numLeaves;
+          fscanf(file, "%d \n", &numLeaves);
+          fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
+
+          for(int j = 0; j < numLeaves; j++)
+          {
+              TldExportEntry entry;
+              fscanf(file, "%d %d %d \n", &entry.index, &entry.P, &entry.N);
+              ec->updatePosterior(i, entry.index, 1, entry.P);
+              ec->updatePosterior(i, entry.index, 0, entry.N);
+          }
+      }
+
+      t->detectorCascade->initWindowsAndScales();
+      t->detectorCascade->initWindowOffsets();
+
+      t->detectorCascade->propagateMembers();
+
+      t->detectorCascade->initialised = true;
+
+      ec->initFeatureOffsets();
     }
-
-    int numNegativePatches;
-    fscanf(file, "%d \n", &numNegativePatches);
-    fgets(str_buf, MAX_LEN, file); /*Skip line*/
-
-
-    for(int s = 0; s < numNegativePatches; s++)
-    {
-        NormalizedPatch patch;
-
-        for(int i = 0; i < 15; i++)   //Do 15 times
-        {
-
-            fgets(str_buf, MAX_LEN, file); /*Read sample*/
-
-            char *pch;
-            pch = strtok(str_buf, " \n");
-            int j = 0;
-
-            while(pch != NULL)
-            {
-                float val = atof(pch);
-                patch.values[i * TLD_PATCH_SIZE + j] = val;
-
-                pch = strtok(NULL, " \n");
-
-                j++;
-            }
-        }
-
-        nn->falsePositives->push_back(patch);
-    }
-
-    fscanf(file, "%d \n", &ec->numTrees);
-    detectorCascade->numTrees = ec->numTrees;
-    fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
-
-    fscanf(file, "%d \n", &ec->numFeatures);
-    detectorCascade->numFeatures = ec->numFeatures;
-    fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
-
-    int size = 2 * 2 * ec->numFeatures * ec->numTrees;
-    ec->features = new float[size];
-    ec->numIndices = pow(2.0f, ec->numFeatures);
-    ec->initPosteriors();
-
-    for(int i = 0; i < ec->numTrees; i++)
-    {
-        fgets(str_buf, MAX_LEN, file); /*Skip line*/
-
-        for(int j = 0; j < ec->numFeatures; j++)
-        {
-            float *features = ec->features + 4 * ec->numFeatures * i + 4 * j;
-            fscanf(file, "%f %f %f %f", &features[0], &features[1], &features[2], &features[3]);
-            fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
-        }
-
-        /* read number of leaves*/
-        int numLeaves;
-        fscanf(file, "%d \n", &numLeaves);
-        fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
-
-        for(int j = 0; j < numLeaves; j++)
-        {
-            TldExportEntry entry;
-            fscanf(file, "%d %d %d \n", &entry.index, &entry.P, &entry.N);
-            ec->updatePosterior(i, entry.index, 1, entry.P);
-            ec->updatePosterior(i, entry.index, 0, entry.N);
-        }
-    }
-
-    detectorCascade->initWindowsAndScales();
-    detectorCascade->initWindowOffsets();
-
-    detectorCascade->propagateMembers();
-
-    detectorCascade->initialised = true;
-
-    ec->initFeatureOffsets();
 
     fclose(file);
 }

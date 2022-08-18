@@ -38,7 +38,6 @@ namespace tld
 
 class NNClassifier
 {
-    float ncc(float *f1, float *f2);
 public:
     bool enabled;
 
@@ -58,6 +57,8 @@ public:
     float classifyWindow(const cv::Mat &img, int windowIdx);
     void learn(std::vector<NormalizedPatch> patches);
     bool filter(const cv::Mat &img, int windowIdx);
+private:
+    float ncc(float *f1, float *f2);
 };
 
 } /* namespace tld */
