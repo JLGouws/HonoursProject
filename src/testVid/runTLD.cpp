@@ -48,9 +48,10 @@ int main(int argc, char** argv){
   videoInfo = load_video_info(basePath, video);
   if(argv[1][0] == 'D' && argv[1][1] == 'a' && argv[1][2] == 'v') {
     cout << "David" << endl;
-    for(int i = 0; i < 299; i++)
+    for(int i = 0; i < 298; i++)
       0[videoInfo->video] >> image;
   }
+  0[videoInfo->video] >> image;
 
   Mat grey(image.rows, image.cols, CV_8UC1);
   cvtColor(image, grey, CV_BGR2GRAY);

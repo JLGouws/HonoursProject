@@ -44,6 +44,7 @@ MultiTrack::MultiTrack()
     detectorEnabled = true;
     learningEnabled = true;
     alternating = false;
+    frameNumber = 0;
 }
 
 MultiTrack::~MultiTrack()
@@ -156,7 +157,12 @@ void MultiTrack::addTarget(Rect *bb)
 {
     Target_t *tg = new Target_t();
     tg->tracker = new KCFTracker();
-    tg->detectorCascade = new DetectorCascade();
+    if(targets.size() == 0)
+      tg->detectorCascade = new DetectorCascade(frameNumber);
+    else
+    {
+      tg->detectorCascade = new DetectorCascade(targets.at(0)->detectorCascade->varianceFilter, frameNumber);
+    }
     tg->detectorCascade->release();
     tg->detectorCascade->objWidth = bb->width;
     tg->detectorCascade->objHeight = bb->height;
@@ -203,6 +209,8 @@ void MultiTrack::processImage(const Mat &img)
 
       learn(t);
     }
+
+    frameNumber++;
 }
 
 vector<pair<Rect, int>> MultiTrack::getResults()

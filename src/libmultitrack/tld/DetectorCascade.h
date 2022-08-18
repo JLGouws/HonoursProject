@@ -82,6 +82,9 @@ class DetectorCascade
     void propagateMembers();
 
     DetectorCascade();
+    DetectorCascade(long frameNumber);
+    DetectorCascade(VarianceFilter *varFil);
+    DetectorCascade(VarianceFilter *varFil, long frameNumber);
     ~DetectorCascade();
 
     void init();
@@ -97,6 +100,7 @@ class DetectorCascade
     //Working data
     int numScales;
     cv::Size *scales;
+    long frameNumber;
 };
 
 } /* namespace tld */

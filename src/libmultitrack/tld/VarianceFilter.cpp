@@ -34,12 +34,18 @@ using namespace cv;
 namespace tld
 {
 
-VarianceFilter::VarianceFilter()
+VarianceFilter::VarianceFilter() : VarianceFilter((long) 0)
+{
+}
+
+
+VarianceFilter::VarianceFilter(long frame)
 {
     enabled = true;
     minVar = 0;
     integralImg = NULL;
     integralImg_squared = NULL;
+    frameNumber = frame;
 }
 
 VarianceFilter::~VarianceFilter()
@@ -80,6 +86,23 @@ void VarianceFilter::nextIteration(const Mat &img)
 
     integralImg_squared = new IntegralImage<long long>(img.size());
     integralImg_squared->calcIntImg(img, true);
+}
+
+void VarianceFilter::nextIteration(const Mat &img, long frame)
+{
+    if(frame != frameNumber)
+    {
+      if(!enabled) return;
+
+      release();
+
+      integralImg = new IntegralImage<int>(img.size());
+      integralImg->calcIntImg(img);
+
+      integralImg_squared = new IntegralImage<long long>(img.size());
+      integralImg_squared->calcIntImg(img, true);
+      frameNumber++;
+    }
 }
 
 bool VarianceFilter::filter(int i)

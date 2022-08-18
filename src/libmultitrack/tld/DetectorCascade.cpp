@@ -38,7 +38,48 @@ namespace tld
 //TODO: Convert this to a function
 #define sub2idx(x,y,imgWidthStep) ((int) (floor((x)+0.5) + floor((y)+0.5)*(imgWidthStep)))
 
-DetectorCascade::DetectorCascade()
+DetectorCascade::DetectorCascade() : DetectorCascade((long) 0)
+{
+  /*
+    objWidth = -1; //MUST be set before calling init
+    objHeight = -1; //MUST be set before calling init
+    useShift = 1;
+    imgHeight = -1;
+    imgWidth = -1;
+
+    shift = 0.1;
+    minScale = -10;
+    maxScale = 10;
+    minSize = 25;
+    imgWidthStep = -1;
+
+    numTrees = 10;
+    numFeatures = 13;
+
+    initialised = false;
+
+    frameNumber = 0;
+
+    foregroundDetector = new ForegroundDetector();
+    varianceFilter = new VarianceFilter();
+    ensembleClassifier = new EnsembleClassifier();
+    nnClassifier = new NNClassifier();
+    clustering = new Clustering();
+
+    detectionResult = new DetectionResult();
+    */
+    //this((long) 0);
+}
+
+DetectorCascade::DetectorCascade(long frame) : DetectorCascade(new VarianceFilter(frame), frame)
+{
+}
+
+DetectorCascade::DetectorCascade(VarianceFilter *varFil) : DetectorCascade(varFil, long(0))
+{
+}
+
+DetectorCascade::DetectorCascade(VarianceFilter *varFil, long frame)
 {
     objWidth = -1; //MUST be set before calling init
     objHeight = -1; //MUST be set before calling init
@@ -57,12 +98,13 @@ DetectorCascade::DetectorCascade()
 
     initialised = false;
 
+    frameNumber = frame;
+
     foregroundDetector = new ForegroundDetector();
-    varianceFilter = new VarianceFilter();
+    varianceFilter = varFil;
     ensembleClassifier = new EnsembleClassifier();
     nnClassifier = new NNClassifier();
     clustering = new Clustering();
-
     detectionResult = new DetectionResult();
 }
 
@@ -71,7 +113,11 @@ DetectorCascade::~DetectorCascade()
     release();
 
     delete foregroundDetector;
-    delete varianceFilter;
+    if(varianceFilter)
+    {
+      delete varianceFilter;
+      varianceFilter = NULL;
+    }
     delete ensembleClassifier;
     delete nnClassifier;
     delete detectionResult;
@@ -281,7 +327,7 @@ void DetectorCascade::detect(const Mat &img)
 
     //Prepare components
     foregroundDetector->nextIteration(img); //Calculates foreground
-    varianceFilter->nextIteration(img); //Calculates integral images
+    varianceFilter->nextIteration(img, frameNumber); //Calculates integral images
     ensembleClassifier->nextIteration(img);
 
     #pragma omp parallel for
@@ -331,14 +377,14 @@ void DetectorCascade::detect(const Mat &img)
         }
 
         detectionResult->confidentIndices->push_back(i);
-
-
     }
 
     //Cluster
     clustering->clusterConfidentIndices();
 
     detectionResult->containsValidData = true;
+
+    frameNumber++;
 }
 
 } /* namespace tld */

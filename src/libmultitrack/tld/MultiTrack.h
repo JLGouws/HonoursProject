@@ -78,6 +78,7 @@ class MultiTrack
     void readFromFile(const char *path);
 
     private:
+      long frameNumber;
 
       void storeCurrentData();
       void storeCurrentTarget(Target_t *t);

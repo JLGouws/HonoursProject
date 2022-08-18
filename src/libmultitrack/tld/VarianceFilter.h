@@ -45,15 +45,18 @@ public:
     float minVar;
 
     VarianceFilter();
+    VarianceFilter(long frame);
     virtual ~VarianceFilter();
 
     void release();
     void nextIteration(const cv::Mat &img);
+    void nextIteration(const cv::Mat &img, long frame);
     bool filter(int idx);
     float calcVariance(int *off);
 private:
     IntegralImage<int>* integralImg;
     IntegralImage<long long>* integralImg_squared;
+    long frameNumber;
 
 };
 
