@@ -6,10 +6,9 @@
  */
 
 #include "FaceFilter.h"
-#include <opencv2/dnn.hpp> 
-#include <opencv2/objdetect.hpp> 
 
 #include "IntegralImage.h"
+#include "TLDUtil.h"
 #include "DetectorCascade.h"
 
 using namespace cv;
@@ -21,25 +20,39 @@ FaceFilter::FaceFilter(long frame = 0)
 {
     enabled = true;
     frameNumber = frame;
+    minOverlap = 0.6;
     detector = NULL;
+    windowOffsets = NULL;
 }
 
 FaceFilter::~FaceFilter()
 {
-  detector->release();
-  detector = NULL
+  delete detector;
+  detector = NULL;
+}
+
+float FaceFilter::calcFace(int *off)
+{
+    float max = 0,
+          overlap;
+    for (const auto &face :faces) 
+    {
+      overlap = tldOverlapBBRect(off, face);
+      max = overlap > max ? overlap : max;
+    }
+    return max;
 }
 
 void FaceFilter::nextIteration(const Mat &img, long frame)
 {
     if(frame != frameNumber)
     {
-        if(detector == NULL;
-          detector = FaceDetectorYN::create("face_detection_yunet_2022mar.onnx", "", img.size(), scoreThreshold, nmsThreshold, topK);
+        if(detector == NULL)
+          detector = new CascadeClassifier("haarcascade_frontalcatface_extended.xml");
 
         if(!enabled) return;
 
-        detector->detect(img, faces);
+        detector->detectMultiScale(img, faces);
         frameNumber++;
     }
 }
@@ -47,16 +60,15 @@ void FaceFilter::nextIteration(const Mat &img, long frame)
 bool FaceFilter::filter(int i)
 {
     if(!enabled) return true;
-/*
-    float bboxvar = calcFace(windowOffsets + TLD_WINDOW_OFFSET_SIZE * i);
 
-    detectionResult->variances[i] = bboxvar;
+    float bboxoverlap = calcFace(windowOffsets + TLD_WINDOW_OFFSET_SIZE * i);
 
-    if(bboxvar < minVar)
+    detectionResult->overlaps[i] = bboxoverlap;
+
+    if(bboxoverlap < minOverlap)
     {
         return false;
     }
-    */
 
     return true;
 }

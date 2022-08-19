@@ -195,6 +195,13 @@ float tldOverlapRectRect(Rect r1, Rect r2)
 
 }
 
+float tldOverlapBBRect(int *bb1, Rect r2)
+{
+    int bb2[4];
+    tldRectToArray<int>(r2, bb2);
+    return tldBBOverlap(bb1, bb2);
+}
+
 Rect *tldCopyRect(Rect *r)
 {
     Rect *r2 = new Rect();

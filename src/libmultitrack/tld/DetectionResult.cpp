@@ -43,6 +43,7 @@ DetectionResult::DetectionResult()
     detectorBB = NULL;
 
     variances = NULL;
+    overlaps = NULL;
     posteriors = NULL;
     featureVectors = NULL;
 }
@@ -57,6 +58,7 @@ DetectionResult::~DetectionResult()
 void DetectionResult::init(int numWindows, int numTrees)
 {
     variances = new float[numWindows];
+    overlaps = new float[numWindows];
     posteriors = new float[numWindows];
     featureVectors = new int[numWindows * numTrees];
     delete confidentIndices;
@@ -82,6 +84,8 @@ void DetectionResult::release()
     fgList->clear();
     delete[] variances;
     variances = NULL;
+    delete[] overlaps;
+    overlaps = NULL;
     delete[] posteriors;
     posteriors = NULL;
     delete[] featureVectors;

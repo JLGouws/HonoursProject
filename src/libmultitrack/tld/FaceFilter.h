@@ -9,7 +9,6 @@
 #define FACEFILTER_H_
 
 #include <opencv/cv.h>
-#include <opencv2/dnn.hpp> 
 #include <opencv2/objdetect.hpp> 
 
 #include "IntegralImage.h"
@@ -28,12 +27,16 @@ class FaceFilter
     FaceFilter(long frame);
     virtual ~FaceFilter();
 
+    float minOverlap;
+    int *windowOffsets;
+
     void nextIteration(const cv::Mat &img, long frame);
     bool filter(int idx);
   private:
-    cv::Mat faces;
+    std::vector<cv::Rect> faces;
     long frameNumber;
-    cv::Ptr<cv::FaceDetectorYN> detector;
+    cv::CascadeClassifier *detector;
+    float calcFace(int *off);
     float scoreThreshold;
     float nmsThreshold;
     int topK;

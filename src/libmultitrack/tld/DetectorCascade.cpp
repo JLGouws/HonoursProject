@@ -320,6 +320,8 @@ void DetectorCascade::detect(const Mat &img)
 
     detectionResult->reset();
 
+    varianceFilter->windowOffsets = windowOffsets;
+
     if(!initialised)
     {
         return;
