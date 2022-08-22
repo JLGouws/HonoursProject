@@ -64,7 +64,9 @@ class MultiTrack
 //    KCF::KCFTracker *kcfTracker;
     std::vector<Target_t *> targets;
     cv::Mat prevImg;
+    cv::Mat prevImgGrey;
     cv::Mat currImg;
+    cv::Mat currImgGrey;
 
     MultiTrack();
     virtual ~MultiTrack();

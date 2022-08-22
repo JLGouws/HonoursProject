@@ -96,8 +96,8 @@ void MultiTrack::release()
 
 void MultiTrack::storeCurrentData()
 {
-    prevImg.release();
-    prevImg = currImg; //Store old image (if any)
+    prevImgGrey.release();
+    prevImgGrey = currImgGrey; //Store old image (if any)
     for (auto const& t : targets) {
       if(t->currBB)//Store old bounding box (if any)
       {
@@ -147,8 +147,8 @@ void MultiTrack::init(const Mat &img, Rect *bb)
 {
     targets.clear();
 
-    currImg = Mat(img.rows, img.cols, CV_8UC1);         
-    cvtColor(img, currImg, CV_BGR2GRAY);
+    currImgGrey = Mat(img.rows, img.cols, CV_8UC1);         
+    cvtColor(img, currImgGrey, CV_BGR2GRAY);
 
     addTarget(bb);
 }
@@ -166,12 +166,12 @@ void MultiTrack::addTarget(Rect *bb)
     tg->detectorCascade->release();
     tg->detectorCascade->objWidth = bb->width;
     tg->detectorCascade->objHeight = bb->height;
-    tg->detectorCascade->imgWidth = currImg.cols;
-    tg->detectorCascade->imgHeight = currImg.rows;
-    tg->detectorCascade->imgWidthStep = currImg.step;
+    tg->detectorCascade->imgWidth = currImgGrey.cols;
+    tg->detectorCascade->imgHeight = currImgGrey.rows;
+    tg->detectorCascade->imgWidthStep = currImgGrey.step;
     tg->detectorCascade->init();
     tg->nnClassifier = tg->detectorCascade->nnClassifier;
-    tg->tracker->init(currImg, *bb);
+    tg->tracker->init(currImgGrey, *bb);
     tg->currBB = new Rect(bb->x, bb->y, bb->width, bb->height);
     tg->prevBB = new Rect(0, 0, 0, 0);
     tg->currConf = 1;
@@ -186,23 +186,25 @@ void MultiTrack::addTarget(Rect *bb)
 
 void MultiTrack::processImage(const Mat &img)
 {
-    prevImg.release();
-    prevImg = currImg; //Store old image (if any)
+    prevImgGrey.release();
+    prevImgGrey = currImgGrey; //Store old image (if any)
+    prevImg = currImg;
     Mat grey_frame;
+    currImg = img;
     cvtColor(img, grey_frame, CV_BGR2GRAY);
-    currImg = grey_frame; // Store new image , right after storeCurrentData();
+    currImgGrey = grey_frame; // Store new image , right after storeCurrentData();
 
     for (auto const& t : targets) {
       storeCurrentTarget(t);
 
       if(trackerEnabled)
       {
-          t->tracker->track(currImg, t->prevBB);//t->tracker->track(currImg, t->prevBB);//medianFlowTracker->track(prevImg, currImg, prevBB);
+          t->tracker->track(currImgGrey, t->prevBB);//t->tracker->track(currImg, t->prevBB);//medianFlowTracker->track(prevImgGrey, currImg, prevBB);
       }
 
       if(detectorEnabled && (!alternating || t->tracker->trackerBB == NULL))//medianFlowTracker->trackerBB == NULL))
       {
-          t->detectorCascade->detect(grey_frame);
+          t->detectorCascade->detect(grey_frame, currImg);
       }
 
       fuseHypotheses(t);
@@ -241,12 +243,12 @@ void MultiTrack::fuseHypotheses(Target_t *t)
 
     if(numClusters == 1)
     {
-        confDetector = t->nnClassifier->classifyBB(currImg, detectorBB);
+        confDetector = t->nnClassifier->classifyBB(currImgGrey, detectorBB);
     }
 
     if(trackerBB != NULL)
     {
-        float confTracker = t->nnClassifier->classifyBB(currImg, trackerBB);
+        float confTracker = t->nnClassifier->classifyBB(currImgGrey, trackerBB);
         if(t->currBB)
         {
             delete t->currBB;
@@ -299,11 +301,11 @@ void MultiTrack::initialLearning(Target_t *t)
 
     DetectionResult *detectionResult = t->detectorCascade->detectionResult;
 
-    t->detectorCascade->detect(currImg);
+    t->detectorCascade->detect(currImgGrey);
 
     //This is the positive patch
     NormalizedPatch patch;
-    tldExtractNormalizedPatchRect(currImg, t->currBB, patch.values);
+    tldExtractNormalizedPatchRect(currImgGrey, t->currBB, patch.values);
     patch.positive = 1;
 
     float initVar = tldCalcVariance(patch.values, TLD_PATCH_SIZE * TLD_PATCH_SIZE);
@@ -365,7 +367,7 @@ void MultiTrack::initialLearning(Target_t *t)
         int idx = negativeIndices.at(i);
 
         NormalizedPatch patch;
-        tldExtractNormalizedPatchBB(currImg, &t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
+        tldExtractNormalizedPatchBB(currImgGrey, &t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
         patch.positive = 0;
         patches.push_back(patch);
     }
@@ -382,11 +384,11 @@ void MultiTrack::initialLearning()
 
     DetectionResult *detectionResult = detectorCascade->detectionResult;
 
-    detectorCascade->detect(currImg);
+    detectorCascade->detect(currImgGrey);
 
     //This is the positive patch
     NormalizedPatch patch;
-    tldExtractNormalizedPatchRect(currImg, currBB, patch.values);
+    tldExtractNormalizedPatchRect(currImgGrey, currBB, patch.values);
     patch.positive = 1;
 
     float initVar = tldCalcVariance(patch.values, TLD_PATCH_SIZE * TLD_PATCH_SIZE);
@@ -448,7 +450,7 @@ void MultiTrack::initialLearning()
         int idx = negativeIndices.at(i);
 
         NormalizedPatch patch;
-        tldExtractNormalizedPatchBB(currImg, &detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
+        tldExtractNormalizedPatchBB(currImgGrey, &detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
         patch.positive = 0;
         patches.push_back(patch);
     }
@@ -475,12 +477,12 @@ void MultiTrack::learn(Target_t *t)
 
     if(!detectionResult->containsValidData)
     {
-        t->detectorCascade->detect(currImg);
+        t->detectorCascade->detect(currImgGrey);
     }
 
     //This is the positive patch
     NormalizedPatch patch;
-    tldExtractNormalizedPatchRect(currImg, t->currBB, patch.values);
+    tldExtractNormalizedPatchRect(currImgGrey, t->currBB, patch.values);
 
     float *overlap = new float[t->detectorCascade->numWindows];
     tldOverlapRect(t->detectorCascade->windows, t->detectorCascade->numWindows, t->currBB, overlap);
@@ -546,7 +548,7 @@ void MultiTrack::learn(Target_t *t)
         int idx = negativeIndicesForNN.at(i);
 
         NormalizedPatch patch;
-        tldExtractNormalizedPatchBB(currImg, &t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
+        tldExtractNormalizedPatchBB(currImgGrey, &t->detectorCascade->windows[TLD_WINDOW_SIZE * idx], patch.values);
         patch.positive = 0;
         patches.push_back(patch);
     }

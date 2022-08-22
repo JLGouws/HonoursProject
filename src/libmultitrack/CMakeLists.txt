@@ -25,6 +25,7 @@ add_library(libmultitrack
     tld/TLDUtil.cpp
     tld/VarianceFilter.cpp
     tld/FaceFilter.cpp
+    tld/DnnFilter.cpp
     imacq/ImAcq.h
     mftracker/BB.h
     mftracker/BBPredict.h
@@ -44,6 +45,7 @@ add_library(libmultitrack
     tld/TLDUtil.h
     tld/VarianceFilter.h
     tld/FaceFilter.h
+    tld/DnnFilter.h
     )
 
 target_link_libraries(libmultitrack ${OpenCV_LIBS} kcf)

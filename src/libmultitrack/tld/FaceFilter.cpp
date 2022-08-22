@@ -51,6 +51,7 @@ void FaceFilter::nextIteration(const Mat &img, long frame)
           detector = new CascadeClassifier("haarcascade_frontalcatface_extended.xml");
 
         if(!enabled) return;
+        faces.clear();
 
         detector->detectMultiScale(img, faces);
         frameNumber++;

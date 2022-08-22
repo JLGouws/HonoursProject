@@ -95,6 +95,7 @@ class DetectorCascade
     void release();
     void cleanPreviousData();
     void detect(const cv::Mat &img);
+    void detect(const cv::Mat &greyImg, const cv::Mat &colImg);
 
   private:
     //Working data

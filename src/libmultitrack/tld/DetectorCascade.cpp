@@ -314,6 +314,81 @@ void DetectorCascade::initWindowOffsets()
     }
 }
 
+void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
+{
+    //For every bounding box, the output is confidence, pattern, variance
+
+    detectionResult->reset();
+
+    varianceFilter->windowOffsets = windowOffsets;
+
+    if(!initialised)
+    {
+        return;
+    }
+
+    //Prepare components
+    foregroundDetector->nextIteration(greyImg); //Calculates foreground
+    varianceFilter->nextIteration(greyImg, frameNumber); //Calculates integral images
+    ensembleClassifier->nextIteration(greyImg);
+
+    #pragma omp parallel for
+
+    for(int i = 0; i < numWindows; i++)
+    {
+
+        int *window = &windows[TLD_WINDOW_SIZE * i];
+
+        if(foregroundDetector->isActive())
+        {
+            bool isInside = false;
+
+            for(size_t j = 0; j < detectionResult->fgList->size(); j++)
+            {
+
+                int bgBox[4];
+                tldRectToArray(detectionResult->fgList->at(j), bgBox);
+
+                if(tldIsInside(window, bgBox))  //TODO: This is inefficient and should be replaced by a quadtree
+                {
+                    isInside = true;
+                }
+            }
+
+            if(!isInside)
+            {
+                detectionResult->posteriors[i] = 0;
+                continue;
+            }
+        }
+
+        if(!varianceFilter->filter(i))
+        {
+            detectionResult->posteriors[i] = 0;
+            continue;
+        }
+
+        if(!ensembleClassifier->filter(i))
+        {
+            continue;
+        }
+
+        if(!nnClassifier->filter(greyImg, i))
+        {
+            continue;
+        }
+
+        detectionResult->confidentIndices->push_back(i);
+    }
+
+    //Cluster
+    clustering->clusterConfidentIndices();
+
+    detectionResult->containsValidData = true;
+
+    frameNumber++;
+}
+
 void DetectorCascade::detect(const Mat &img)
 {
     //For every bounding box, the output is confidence, pattern, variance
