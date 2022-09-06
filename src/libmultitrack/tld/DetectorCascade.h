@@ -29,6 +29,7 @@
 #include "DetectionResult.h"
 #include "ForegroundDetector.h"
 #include "VarianceFilter.h"
+#include "DnnFilter.h"
 #include "EnsembleClassifier.h"
 #include "Clustering.h"
 #include "NNClassifier.h"
@@ -71,8 +72,7 @@ class DetectorCascade
     bool initialised;
 
     //Components of Detector Cascade
-    ForegroundDetector *foregroundDetector;
-    VarianceFilter *varianceFilter;
+    DnnFilter *dnnFilter;
     EnsembleClassifier *ensembleClassifier;
     Clustering *clustering;
     NNClassifier *nnClassifier;
@@ -83,8 +83,8 @@ class DetectorCascade
 
     DetectorCascade();
     DetectorCascade(long frameNumber);
-    DetectorCascade(VarianceFilter *varFil);
-    DetectorCascade(VarianceFilter *varFil, long frameNumber);
+    DetectorCascade(DnnFilter *dnnFilter);
+    DetectorCascade(DnnFilter *dnnFilter, long frameNumber);
     ~DetectorCascade();
 
     void init();

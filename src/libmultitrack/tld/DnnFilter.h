@@ -29,17 +29,17 @@ class DnnFilter
     virtual ~DnnFilter();
 
     float minOverlap;
-    int *windowOffsets;
+    int *windows;
 
     void nextIteration(const cv::Mat &img, long frame);
     bool filter(int idx);
+    float minConfidence = 0.4;
   private:
     std::vector<cv::Rect> faces;
     long frameNumber;
     cv::dnn::Net detector;
     float calcFace(int *off);
     int imw, imh;
-    float minConfidence = 0.5;
     bool init;
 };
 

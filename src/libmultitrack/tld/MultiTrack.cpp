@@ -161,7 +161,7 @@ void MultiTrack::addTarget(Rect *bb)
       tg->detectorCascade = new DetectorCascade(frameNumber);
     else
     {
-      tg->detectorCascade = new DetectorCascade(targets.at(0)->detectorCascade->varianceFilter, frameNumber);
+      tg->detectorCascade = new DetectorCascade(targets.at(0)->detectorCascade->dnnFilter, frameNumber);
     }
     tg->detectorCascade->release();
     tg->detectorCascade->objWidth = bb->width;
@@ -301,16 +301,12 @@ void MultiTrack::initialLearning(Target_t *t)
 
     DetectionResult *detectionResult = t->detectorCascade->detectionResult;
 
-    t->detectorCascade->detect(currImgGrey);
+    t->detectorCascade->detect(currImgGrey, currImg);
 
     //This is the positive patch
     NormalizedPatch patch;
     tldExtractNormalizedPatchRect(currImgGrey, t->currBB, patch.values);
     patch.positive = 1;
-
-    float initVar = tldCalcVariance(patch.values, TLD_PATCH_SIZE * TLD_PATCH_SIZE);
-    t->detectorCascade->varianceFilter->minVar = initVar / 2;
-
 
     float *overlap = new float[t->detectorCascade->numWindows];
     tldOverlapRect(t->detectorCascade->windows, t->detectorCascade->numWindows, t->currBB, overlap);
@@ -329,15 +325,10 @@ void MultiTrack::initialLearning(Target_t *t)
         {
             positiveIndices.push_back(pair<int, float>(i, overlap[i]));
         }
-
-        if(overlap[i] < 0.2)
+        else if (overlap[i] > 0.6)
         {
-            float variance = detectionResult->variances[i];
-
-            if(!t->detectorCascade->varianceFilter->enabled || variance > t->detectorCascade->varianceFilter->minVar)   //TODO: This check is unnecessary if minVar would be set before calling detect.
-            {
-                negativeIndices.push_back(i);
-            }
+            //cout << " negative example" << endl;
+            negativeIndices.push_back(i);
         }
     }
 
@@ -555,9 +546,10 @@ void MultiTrack::learn(Target_t *t)
 
     t->detectorCascade->nnClassifier->learn(patches);
 
-    //cout << "NN has now " << detectorCascade->nnClassifier->truePositives->size() << " positives and " << detectorCascade->nnClassifier->falsePositives->size() << " negatives.\n";
+    cout << "NN has now " << t->detectorCascade->nnClassifier->truePositives->size() << " positives and " << t->detectorCascade->nnClassifier->falsePositives->size() << " negatives.\n";
 
     delete[] overlap;
+    cout << endl << endl;
 }
 
 typedef struct
@@ -581,7 +573,7 @@ void MultiTrack::writeToFile(const char *path)
         fprintf(file, "%d #Target number\n", t->targetNumber);
         fprintf(file, "%d #width\n", t->detectorCascade->objWidth);
         fprintf(file, "%d #height\n", t->detectorCascade->objHeight);
-        fprintf(file, "%f #min_var\n", t->detectorCascade->varianceFilter->minVar);
+        fprintf(file, "%f #dnn_min_conf\n", t->detectorCascade->dnnFilter->minConfidence);
         fprintf(file, "%d #Positive Sample Size\n", nn->truePositives->size());
 
 
@@ -702,7 +694,7 @@ void MultiTrack::readFromFile(const char *path)
       fscanf(file, "%d \n", &t->detectorCascade->objHeight);
       fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
 
-      fscanf(file, "%f \n", &t->detectorCascade->varianceFilter->minVar);
+      fscanf(file, "%f \n", &t->detectorCascade->dnnFilter->minConfidence);
       fgets(str_buf, MAX_LEN, file); /*Skip rest of line*/
 
       int numPositivePatches;

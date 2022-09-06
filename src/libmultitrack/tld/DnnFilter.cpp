@@ -10,6 +10,9 @@
 #include "IntegralImage.h"
 #include "TLDUtil.h"
 #include "DetectorCascade.h"
+#include <cstdlib>                                                              
+#include <cmath>  
+#include <iostream>  
 
 using namespace cv;
 
@@ -21,7 +24,7 @@ DnnFilter::DnnFilter(long frame = 0)
     enabled = true;
     frameNumber = frame;
     minOverlap = 0.6;
-    windowOffsets = NULL;
+    windows = NULL;
     init = false;
 }
 
@@ -32,7 +35,7 @@ DnnFilter::~DnnFilter()
 
 float DnnFilter::calcFace(int *off)
 {
-    float max = 0,
+    float max = 0.,
           overlap;
     for (const auto &face :faces) 
     {
@@ -94,14 +97,17 @@ bool DnnFilter::filter(int i)
 {
     if(!enabled) return true;
 
-    float bboxoverlap = calcFace(windowOffsets + TLD_WINDOW_OFFSET_SIZE * i);
+    float bboxoverlap = calcFace(windows + TLD_WINDOW_OFFSET_SIZE * i);
+
 
     detectionResult->overlaps[i] = bboxoverlap;
 
     if(bboxoverlap < minOverlap)
     {
-        return false;
+      return false;
     }
+
+    //std::cout << "Found face: " << bboxoverlap << " frame: " << frameNumber << std::endl;
 
     return true;
 }

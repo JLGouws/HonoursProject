@@ -61,7 +61,7 @@ DetectorCascade::DetectorCascade() : DetectorCascade((long) 0)
     frameNumber = 0;
 
     foregroundDetector = new ForegroundDetector();
-    varianceFilter = new VarianceFilter();
+    dnnFilter = new DnnFilter();
     ensembleClassifier = new EnsembleClassifier();
     nnClassifier = new NNClassifier();
     clustering = new Clustering();
@@ -71,15 +71,15 @@ DetectorCascade::DetectorCascade() : DetectorCascade((long) 0)
     //this((long) 0);
 }
 
-DetectorCascade::DetectorCascade(long frame) : DetectorCascade(new VarianceFilter(frame), frame)
+DetectorCascade::DetectorCascade(long frame) : DetectorCascade(new DnnFilter(frame), frame)
 {
 }
 
-DetectorCascade::DetectorCascade(VarianceFilter *varFil) : DetectorCascade(varFil, long(0))
+DetectorCascade::DetectorCascade(DnnFilter *varFil) : DetectorCascade(varFil, long(0))
 {
 }
 
-DetectorCascade::DetectorCascade(VarianceFilter *varFil, long frame)
+DetectorCascade::DetectorCascade(DnnFilter *dnnFil, long frame)
 {
     objWidth = -1; //MUST be set before calling init
     objHeight = -1; //MUST be set before calling init
@@ -94,14 +94,13 @@ DetectorCascade::DetectorCascade(VarianceFilter *varFil, long frame)
     imgWidthStep = -1;
 
     numTrees = 10;
-    numFeatures = 13;
+    numFeatures = 5;
 
     initialised = false;
 
     frameNumber = frame;
 
-    foregroundDetector = new ForegroundDetector();
-    varianceFilter = varFil;
+    dnnFilter = dnnFil;
     ensembleClassifier = new EnsembleClassifier();
     nnClassifier = new NNClassifier();
     clustering = new Clustering();
@@ -112,11 +111,10 @@ DetectorCascade::~DetectorCascade()
 {
     release();
 
-    delete foregroundDetector;
-    if(varianceFilter)
+    if(dnnFilter)
     {
-      delete varianceFilter;
-      varianceFilter = NULL;
+      delete dnnFilter;
+      dnnFilter = NULL;
     }
     delete ensembleClassifier;
     delete nnClassifier;
@@ -146,7 +144,7 @@ void DetectorCascade::propagateMembers()
 {
     detectionResult->init(numWindows, numTrees);
 
-    varianceFilter->windowOffsets = windowOffsets;
+    dnnFilter->windows = windows;
     ensembleClassifier->windowOffsets = windowOffsets;
     ensembleClassifier->imgWidthStep = imgWidthStep;
     ensembleClassifier->numScales = numScales;
@@ -157,10 +155,7 @@ void DetectorCascade::propagateMembers()
     clustering->windows = windows;
     clustering->numWindows = numWindows;
 
-    foregroundDetector->minBlobSize = minSize * minSize;
-
-    foregroundDetector->detectionResult = detectionResult;
-    varianceFilter->detectionResult = detectionResult;
+    dnnFilter->detectionResult = detectionResult;
     ensembleClassifier->detectionResult = detectionResult;
     nnClassifier->detectionResult = detectionResult;
     clustering->detectionResult = detectionResult;
@@ -175,7 +170,6 @@ void DetectorCascade::release()
 
     initialised = false;
 
-    foregroundDetector->release();
     ensembleClassifier->release();
     nnClassifier->release();
 
@@ -320,7 +314,7 @@ void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
 
     detectionResult->reset();
 
-    varianceFilter->windowOffsets = windowOffsets;
+    dnnFilter->windows = windows ;
 
     if(!initialised)
     {
@@ -328,8 +322,7 @@ void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
     }
 
     //Prepare components
-    foregroundDetector->nextIteration(greyImg); //Calculates foreground
-    varianceFilter->nextIteration(greyImg, frameNumber); //Calculates integral images
+    dnnFilter->nextIteration(colImg, frameNumber); //Calculates integral images
     ensembleClassifier->nextIteration(greyImg);
 
     #pragma omp parallel for
@@ -339,30 +332,7 @@ void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
 
         int *window = &windows[TLD_WINDOW_SIZE * i];
 
-        if(foregroundDetector->isActive())
-        {
-            bool isInside = false;
-
-            for(size_t j = 0; j < detectionResult->fgList->size(); j++)
-            {
-
-                int bgBox[4];
-                tldRectToArray(detectionResult->fgList->at(j), bgBox);
-
-                if(tldIsInside(window, bgBox))  //TODO: This is inefficient and should be replaced by a quadtree
-                {
-                    isInside = true;
-                }
-            }
-
-            if(!isInside)
-            {
-                detectionResult->posteriors[i] = 0;
-                continue;
-            }
-        }
-
-        if(!varianceFilter->filter(i))
+        if(!dnnFilter->filter(i))
         {
             detectionResult->posteriors[i] = 0;
             continue;
@@ -395,7 +365,7 @@ void DetectorCascade::detect(const Mat &img)
 
     detectionResult->reset();
 
-    varianceFilter->windowOffsets = windowOffsets;
+    dnnFilter->windows = windows;
 
     if(!initialised)
     {
@@ -403,8 +373,7 @@ void DetectorCascade::detect(const Mat &img)
     }
 
     //Prepare components
-    foregroundDetector->nextIteration(img); //Calculates foreground
-    varianceFilter->nextIteration(img, frameNumber); //Calculates integral images
+    dnnFilter->nextIteration(img, frameNumber); //Calculates integral images
     ensembleClassifier->nextIteration(img);
 
     #pragma omp parallel for
@@ -414,6 +383,7 @@ void DetectorCascade::detect(const Mat &img)
 
         int *window = &windows[TLD_WINDOW_SIZE * i];
 
+        /*
         if(foregroundDetector->isActive())
         {
             bool isInside = false;
@@ -436,8 +406,9 @@ void DetectorCascade::detect(const Mat &img)
                 continue;
             }
         }
+        */
 
-        if(!varianceFilter->filter(i))
+        if(!dnnFilter->filter(i))
         {
             detectionResult->posteriors[i] = 0;
             continue;

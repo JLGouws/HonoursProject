@@ -51,6 +51,8 @@ option(BUILD_QOPENTLD "Build with Qt-config-dialog." OFF)
 option(USE_SYSTEM_LIBS "Use the installed version of libconfig++." OFF)
 option(WITH_OPENMP "Use OpenMP." OFF)
 
+set (CMAKE_CXX_STANDARD 14)
+
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 if(WITH_OPENMP)
