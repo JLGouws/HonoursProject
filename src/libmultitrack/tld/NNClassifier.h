@@ -39,7 +39,7 @@ namespace tld
 class NNClassifier
 {
 public:
-    bool enabled;
+    bool enabled = false;
 
     int *windows;
     float thetaFP;

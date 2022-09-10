@@ -43,7 +43,7 @@ namespace KCF
 
           BBox_c bb = tracker.getBBox();
 
-          bool success = tracker.getMaxResponse() > 0.01;
+          bool success = tracker.getMaxResponse() > 0.2;
 
           //Extract subimage
           float x, y, w, h;

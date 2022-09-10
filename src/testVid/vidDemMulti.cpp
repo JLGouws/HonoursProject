@@ -4,11 +4,10 @@
 #include <iostream>
 #include <cstring>
 #include <string>
-#include <stdlib.h>
 #include <stdexcept>
 #include <chrono>
 
-#include "MultiTrack.h" 
+#include "TLD.h" 
 
 //https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
 template<typename ... Args>
@@ -32,7 +31,7 @@ int main( int argc, char** argv ){
   int frameCount = 0;
   bool tracking = false;
   // create a tracker object
-  tld::MultiTrack *tld = new tld::MultiTrack();
+  tld::TLD *tld = new tld::TLD();
   // set input video
   VideoCapture cap("/home/jgouws/tldSourceCode/frames/TakiTaki/%04d.jpg");
 
@@ -47,11 +46,17 @@ int main( int argc, char** argv ){
   */
   // perform the tracking process
   printf("Start the tracking process, press ESC to quit.\n");
-  while(frameCount < 170){
+  while(frameCount < 162){
     cap >> frame;
     frameCount++;
-    tld->processImage(frame);
   }
+
+  Mat grey(frame.rows, frame.cols, CV_8UC1);
+  cvtColor(frame, grey, CV_BGR2GRAY);
+
+  tld->detectorCascade->imgWidth = grey.cols;
+  tld->detectorCascade->imgHeight = grey.rows;
+  tld->detectorCascade->imgWidthStep = grey.step;
 
   /*
   bool isColor = (frame.type() == CV_8UC3);
@@ -67,22 +72,19 @@ int main( int argc, char** argv ){
     cout << "writer opened" << endl;
   */
   int i = 0;
-  vector<pair<Rect, int>> targets;
   chrono::steady_clock::time_point begin, end;
-  for (;i <= 500; i++){
+  for (;i <= 350; i++){
     /*
     if(frameCount == 163){
       imshow("tracker", frame);
       waitKey(10000);
     }*/
-    if(frameCount == 170) {
+    if(frameCount == 162) {
       //roi=selectROI("tracker",frame);
-      roi = Rect(242, 135, 22, 28);
+      roi = Rect(256, 142, 20, 25);
       cout << roi;
       begin = chrono::steady_clock::now();
-      tld->addTarget(&roi);
-      roi = Rect(356, 126, 23, 30);
-      tld->addTarget(&roi);
+      tld->selectObject(grey, &roi);
       tracking = true;
       i = 1;
     }
@@ -92,17 +94,14 @@ int main( int argc, char** argv ){
     // update the tracking result
     if(tracking) {
       tld->processImage(frame);
-      targets.clear();
-      targets = tld->getResults();
-
-      for(int i = 0; i < targets.size(); i++)
+      if(tld-> currBB != NULL)
       {
-        Scalar color = targets.at(i).second == 0 ? Scalar( 0, 255, 0) : Scalar( 255, 0, 0);
-        rectangle(frame, targets.at(i).first, color, 2, 1 );
+        roi = Rect(tld->currBB->x, tld->currBB->y, tld->currBB->width, tld->currBB->height);
+        rectangle(frame, roi, Scalar( 0, 255, 0), 2, 1 );
       }
     }
     imshow("tracker", frame);
-    //imwrite(string_format("/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i), frame);
+    imwrite(string_format("/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i), frame);
     /*
     // show image with the tracked object
     if(waitKey(5)==115) {
@@ -114,7 +113,7 @@ int main( int argc, char** argv ){
     }
     */
     //quit on ESC button
-    if(waitKey(10)==27)break;
+    //if(waitKey(20)==27)break;
   }
   
   end = chrono::steady_clock::now();

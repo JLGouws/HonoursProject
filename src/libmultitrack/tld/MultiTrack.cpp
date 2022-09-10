@@ -546,10 +546,10 @@ void MultiTrack::learn(Target_t *t)
 
     t->detectorCascade->nnClassifier->learn(patches);
 
-    cout << "NN has now " << t->detectorCascade->nnClassifier->truePositives->size() << " positives and " << t->detectorCascade->nnClassifier->falsePositives->size() << " negatives.\n";
+    //cout << "NN has now " << t->detectorCascade->nnClassifier->truePositives->size() << " positives and " << t->detectorCascade->nnClassifier->falsePositives->size() << " negatives.\n";
 
     delete[] overlap;
-    cout << endl << endl;
+    //cout << endl << endl;
 }
 
 typedef struct

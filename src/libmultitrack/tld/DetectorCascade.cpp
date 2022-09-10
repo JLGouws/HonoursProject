@@ -94,7 +94,7 @@ DetectorCascade::DetectorCascade(DnnFilter *dnnFil, long frame)
     imgWidthStep = -1;
 
     numTrees = 10;
-    numFeatures = 5;
+    numFeatures = 3;
 
     initialised = false;
 
@@ -334,7 +334,7 @@ void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
 
         if(!dnnFilter->filter(i))
         {
-            detectionResult->posteriors[i] = 0;
+            //detectionResult->posteriors[i] = 0;
             continue;
         }
 

@@ -49,8 +49,8 @@ EnsembleClassifier::EnsembleClassifier() :
     positives(NULL),
     negatives(NULL)
 {
-    numTrees = 10;
-    numFeatures = 13;
+    numTrees = 13;
+    numFeatures = 3;
     enabled = true;
 }
 

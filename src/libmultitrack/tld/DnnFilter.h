@@ -33,7 +33,7 @@ class DnnFilter
 
     void nextIteration(const cv::Mat &img, long frame);
     bool filter(int idx);
-    float minConfidence = 0.4;
+    float minConfidence = 0.6;
   private:
     std::vector<cv::Rect> faces;
     long frameNumber;
