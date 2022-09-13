@@ -24,6 +24,7 @@ class KCFTracker
     void cleanPreviousData();
     void track(cv::Mat &img, cv::Rect *prevBB);
     void init(const cv::Mat &img, const cv::Rect &bbox);
+    void place(const cv::Rect &bbox);
   private:
     KCFTrackerImpl *pimpl;
 };

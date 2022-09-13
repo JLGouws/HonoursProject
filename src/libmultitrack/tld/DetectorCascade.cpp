@@ -94,7 +94,7 @@ DetectorCascade::DetectorCascade(DnnFilter *dnnFil, long frame)
     imgWidthStep = -1;
 
     numTrees = 10;
-    numFeatures = 3;
+    numFeatures = 10;
 
     initialised = false;
 

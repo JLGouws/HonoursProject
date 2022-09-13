@@ -26,6 +26,7 @@
 #include "DetectorCascade.h"
 
 #include <cstdlib>
+#include <iostream>
 #include <cmath>
 
 #include <opencv/cv.h>
@@ -50,7 +51,7 @@ EnsembleClassifier::EnsembleClassifier() :
     negatives(NULL)
 {
     numTrees = 10;
-    numFeatures = 3;
+    numFeatures = 10;
     enabled = true;
 }
 

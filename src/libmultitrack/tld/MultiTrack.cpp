@@ -202,7 +202,7 @@ void MultiTrack::processImage(const Mat &img)
           t->tracker->track(currImgGrey, t->prevBB);//t->tracker->track(currImg, t->prevBB);//medianFlowTracker->track(prevImgGrey, currImg, prevBB);
       }
 
-      if(detectorEnabled && (!alternating || t->tracker->trackerBB == NULL))//medianFlowTracker->trackerBB == NULL))
+      if(detectorEnabled)// && (!alternating || t->tracker->trackerBB == NULL))//medianFlowTracker->trackerBB == NULL))
       {
           t->detectorCascade->detect(grey_frame, currImg);
       }
@@ -277,6 +277,7 @@ void MultiTrack::fuseHypotheses(Target_t *t)
     }
     else if(numClusters == 1)
     {
+        std::cout << "redect" << std::endl;
         if(t->currBB)
         {
             delete t->currBB;
@@ -284,6 +285,7 @@ void MultiTrack::fuseHypotheses(Target_t *t)
         }
         t->currBB = tldCopyRect(detectorBB);
         t->currConf = confDetector;
+        t->tracker->place(*detectorBB);
     }
 
     /*

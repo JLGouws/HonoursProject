@@ -23,7 +23,7 @@ DnnFilter::DnnFilter(long frame = 0)
 {
     enabled = true;
     frameNumber = frame;
-    minOverlap = 0.8;
+    minOverlap = 0.6;
     windows = NULL;
     init = false;
 }
@@ -51,6 +51,7 @@ void DnnFilter::nextIteration(const Mat &img, long frame)
     {
         if(!init)
         {
+          srand(0);
           detector = dnn::readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
           init = true;
         }
@@ -104,7 +105,7 @@ bool DnnFilter::filter(int i)
 
     if(bboxoverlap < minOverlap)
     {
-      return false;
+      return rand() < RAND_MAX / 5;
     }
 
     //std::cout << "Found face: " << bboxoverlap << " frame: " << frameNumber << std::endl;
