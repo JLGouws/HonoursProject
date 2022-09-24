@@ -30,15 +30,21 @@ class DnnFilter
 
     float minOverlap;
     int *windows;
+    int numWindows;
+    bool *sFaces;
+    bool *rPatch;
 
     void nextIteration(const cv::Mat &img, long frame);
     bool filter(int idx);
-    float minConfidence = 0.6;
+    bool filter(int idx, const cv::Rect *trackerBB);
+    bool filter(int idx, const bool valid);
+    float minConfidence;
   private:
     std::vector<cv::Rect> faces;
     long frameNumber;
     cv::dnn::Net detector;
     float calcFace(int *off);
+    void calcFaces();
     int imw, imh;
     bool init;
 };

@@ -6,8 +6,7 @@
 *   it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation, either version 3 of the License, or
 *   (at your option) any later version.
-*
-*   OpenTLD is distributed in the hope that it will be useful,
+* OpenTLD is distributed in the hope that it will be useful,
 *   but WITHOUT ANY WARRANTY; without even the implied warranty of
 *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *   GNU General Public License for more details.
@@ -27,6 +26,8 @@
 #include "DetectorCascade.h"
 
 #include <algorithm>
+
+#include <iostream>
 
 #include "TLDUtil.h"
 
@@ -71,7 +72,7 @@ DetectorCascade::DetectorCascade() : DetectorCascade((long) 0)
     //this((long) 0);
 }
 
-DetectorCascade::DetectorCascade(long frame) : DetectorCascade(new DnnFilter(frame), frame)
+DetectorCascade::DetectorCascade(long frame) : DetectorCascade(new DnnFilter(frame - 1), frame)
 {
 }
 
@@ -93,15 +94,15 @@ DetectorCascade::DetectorCascade(DnnFilter *dnnFil, long frame)
     minSize = 25;
     imgWidthStep = -1;
 
-    numTrees = 10;
-    numFeatures = 10;
+    numTrees = 15;
+    numFeatures = 11;
 
     initialised = false;
 
     frameNumber = frame;
 
     dnnFilter = dnnFil;
-    ensembleClassifier = new EnsembleClassifier();
+    ensembleClassifier = new EnsembleClassifier(numTrees, numFeatures);
     nnClassifier = new NNClassifier();
     clustering = new Clustering();
     detectionResult = new DetectionResult();
@@ -122,6 +123,26 @@ DetectorCascade::~DetectorCascade()
     delete clustering;
 }
 
+void DetectorCascade::init(int numWindows0, int *windows0, int *windowOffsets0, int numScales0, Size *scales0)
+{
+    if(imgWidth == -1 || imgHeight == -1 || imgWidthStep == -1 || objWidth == -1 || objHeight == -1)
+    {
+        //printf("Error: Window dimensions not set\n"); //TODO: Convert this to exception
+    }
+
+    numWindows = numWindows0;
+    windows = windows0;
+    windowOffsets = windowOffsets0;
+    numScales = numScales0;
+    scales = scales0;
+
+    propagateMembers();
+
+    ensembleClassifier->init();
+
+    initialised = true;
+}
+
 void DetectorCascade::init()
 {
     if(imgWidth == -1 || imgHeight == -1 || imgWidthStep == -1 || objWidth == -1 || objHeight == -1)
@@ -131,6 +152,9 @@ void DetectorCascade::init()
 
     initWindowsAndScales();
     initWindowOffsets();
+
+    dnnFilter->windows = windows;
+    dnnFilter->numWindows = numWindows;
 
     propagateMembers();
 
@@ -144,7 +168,6 @@ void DetectorCascade::propagateMembers()
 {
     detectionResult->init(numWindows, numTrees);
 
-    dnnFilter->windows = windows;
     ensembleClassifier->windowOffsets = windowOffsets;
     ensembleClassifier->imgWidthStep = imgWidthStep;
     ensembleClassifier->numScales = numScales;
@@ -308,13 +331,112 @@ void DetectorCascade::initWindowOffsets()
     }
 }
 
-void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
+void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg, const bool valid)
 {
     //For every bounding box, the output is confidence, pattern, variance
 
     detectionResult->reset();
 
-    dnnFilter->windows = windows ;
+    if(!initialised)
+    {
+        return;
+    }
+
+    //Prepare components
+    dnnFilter->nextIteration(colImg, frameNumber); //Calculates integral images
+    ensembleClassifier->nextIteration(greyImg);
+
+    #pragma omp parallel for
+
+    for(int i = 0; i < numWindows; i++)
+    {
+
+        int *window = &windows[TLD_WINDOW_SIZE * i];
+
+        if(!dnnFilter->filter(i, valid))
+        {
+            detectionResult->posteriors[i] = 0;
+            continue;
+        }
+
+
+
+        if(!ensembleClassifier->filter(i))
+        {
+            continue;
+        }
+
+        if(!nnClassifier->filter(greyImg, i))
+        {
+            continue;
+        }
+
+      
+        detectionResult->confidentIndices->push_back(i);
+    }
+
+    //Cluster
+    clustering->clusterConfidentIndices();
+
+    detectionResult->containsValidData = true;
+
+    frameNumber++;
+}
+
+void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg, const Rect *trackerBB)
+{
+    //For every bounding box, the output is confidence, pattern, variance
+
+    detectionResult->reset();
+
+    if(!initialised)
+    {
+        return;
+    }
+
+    //Prepare components
+    dnnFilter->nextIteration(colImg, frameNumber); //Calculates integral images
+    ensembleClassifier->nextIteration(greyImg);
+
+    #pragma omp parallel for
+
+    for(int i = 0; i < numWindows; i++)
+    {
+
+        int *window = &windows[TLD_WINDOW_SIZE * i];
+
+        if(!dnnFilter->filter(i, trackerBB))
+        {
+            detectionResult->posteriors[i] = 0;
+            continue;
+        }
+
+        if(!ensembleClassifier->filter(i))
+        {
+            continue;
+        }
+
+        if(!nnClassifier->filter(greyImg, i))
+        {
+            continue;
+        }
+
+        detectionResult->confidentIndices->push_back(i);
+    }
+
+    //Cluster
+    clustering->clusterConfidentIndices();
+
+    detectionResult->containsValidData = true;
+
+    frameNumber++;
+}
+
+void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
+{
+    //For every bounding box, the output is confidence, pattern, variance
+
+    detectionResult->reset();
 
     if(!initialised)
     {
@@ -334,9 +456,11 @@ void DetectorCascade::detect(const Mat &greyImg, const Mat &colImg)
 
         if(!dnnFilter->filter(i))
         {
-            //detectionResult->posteriors[i] = 0;
+            detectionResult->posteriors[i] = 0;
             continue;
         }
+
+        //std::cout << window[0] << " " << window[1] << " " << window[2] << " " << window[3] << std::endl;
 
         if(!ensembleClassifier->filter(i))
         {
@@ -365,7 +489,6 @@ void DetectorCascade::detect(const Mat &img)
 
     detectionResult->reset();
 
-    dnnFilter->windows = windows;
 
     if(!initialised)
     {

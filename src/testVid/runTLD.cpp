@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include "videoHandler.hpp"
 
-#include "TLD.h"
+#include "MultiTrack.h"
 #include "TLDUtil.h"
 
 using namespace std;
@@ -34,7 +34,7 @@ int main(int argc, char** argv){
   string basePath = "/home/jgouws/OTBData/";
   VidInfo *videoInfo;
 
-  tld::TLD *tracker = new tld::TLD();
+  tld::MultiTrack *tracker = new tld::MultiTrack();
 
   Mat image;
 
@@ -49,18 +49,18 @@ int main(int argc, char** argv){
   if(argv[1][0] == 'D' && argv[1][1] == 'a' && argv[1][2] == 'v') {
     cout << "David" << endl;
     for(int i = 0; i < 298; i++)
+    {
       0[videoInfo->video] >> image;
+      tracker->processImage(image);
+    }
   }
   0[videoInfo->video] >> image;
 
-  Mat grey(image.rows, image.cols, CV_8UC1);
-  cvtColor(image, grey, CV_BGR2GRAY);
+  tracker->processImage(image);
 
-  tracker->detectorCascade->imgWidth = grey.cols;
-  tracker->detectorCascade->imgHeight = grey.rows;
-  tracker->detectorCascade->imgWidthStep = grey.step;
+  vector<pair<Rect, int>> targets;
 
-  tracker->selectObject(grey, videoInfo->initRoi);
+  tracker->addTarget(videoInfo->initRoi);
 
   videoInfo->cur = videoInfo->cur->next;
 
@@ -75,14 +75,13 @@ int main(int argc, char** argv){
 
     tracker->processImage(image);
 
-    if(tracker-> currBB != NULL)
-    {
-      bb = Rect(tracker->currBB->x, tracker->currBB->y, tracker->currBB->width, tracker->currBB->height);
-      rectangle(image, bb, Scalar( 0, 255, 0), 2, 1 );
-      if (videoInfo->cur) {
+    targets.clear();
+    targets = tracker->getResults();
 
-        totalOverlap += tld::tldOverlapRectRect(bb, videoInfo->cur->rect[0]);
-      }
+    for(int i = 0; i < targets.size(); i++)
+    {
+      Scalar color = Scalar( 0, 255, 0);
+      rectangle(image, targets.at(i).first, color, 2, 1 );
     }
 
     if (videoInfo->cur) {

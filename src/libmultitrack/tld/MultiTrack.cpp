@@ -153,6 +153,56 @@ void MultiTrack::init(const Mat &img, Rect *bb)
     addTarget(bb);
 }
 
+void MultiTrack::addTarget(const Mat &im, Rect *bb)
+{
+    Target_t *tg = new Target_t();
+    tg->tracker = new KCFTracker();
+    if(targets.size() == 0)
+      tg->detectorCascade = new DetectorCascade(frameNumber);
+    else
+    {
+      tg->detectorCascade = new DetectorCascade(targets.at(0)->detectorCascade->dnnFilter, frameNumber);
+    }
+    tg->detectorCascade->release();
+    tg->detectorCascade->objWidth = bb->width;
+    tg->detectorCascade->objHeight = bb->height;
+    tg->detectorCascade->imgWidth = currImgGrey.cols;
+    tg->detectorCascade->imgHeight = currImgGrey.rows;
+    tg->detectorCascade->imgWidthStep = currImgGrey.step;
+    if(targets.size() == 0)
+      tg->detectorCascade->init();
+    else
+    {
+      DetectorCascade *dc = targets.at(0)->detectorCascade;
+      tg->detectorCascade->init(dc->numWindows, dc->windows, dc->windowOffsets, dc->numScales, dc->scales);
+    }
+    tg->nnClassifier = tg->detectorCascade->nnClassifier;
+    tg->tracker->init(currImgGrey, *bb);
+    tg->currBB = new Rect(bb->x, bb->y, bb->width, bb->height);
+    tg->prevBB = new Rect(0, 0, 0, 0);
+    tg->currConf = 1;
+    tg->learning = false;
+    tg->valid = true;
+    tg->wasValid = false;
+    tg->targetNumber = targets.size();
+    targets.push_back(tg);
+
+    Mat grey;
+
+    currImgGrey = Mat(im.rows, im.cols, CV_8UC1);         
+    cvtColor(im, grey, CV_BGR2GRAY);
+
+    NormalizedPatch patch;
+    patch.positive = 1;
+    tldExtractNormalizedPatchRect(grey, bb, patch.values);
+
+    vector<NormalizedPatch> patches;
+
+    patches.push_back(patch);
+
+    t->detectorCascade->nnClassifier->learn(patches);
+}
+
 void MultiTrack::addTarget(Rect *bb)
 {
     Target_t *tg = new Target_t();
@@ -169,7 +219,13 @@ void MultiTrack::addTarget(Rect *bb)
     tg->detectorCascade->imgWidth = currImgGrey.cols;
     tg->detectorCascade->imgHeight = currImgGrey.rows;
     tg->detectorCascade->imgWidthStep = currImgGrey.step;
-    tg->detectorCascade->init();
+    if(targets.size() == 0)
+      tg->detectorCascade->init();
+    else
+    {
+      DetectorCascade *dc = targets.at(0)->detectorCascade;
+      tg->detectorCascade->init(dc->numWindows, dc->windows, dc->windowOffsets, dc->numScales, dc->scales);
+    }
     tg->nnClassifier = tg->detectorCascade->nnClassifier;
     tg->tracker->init(currImgGrey, *bb);
     tg->currBB = new Rect(bb->x, bb->y, bb->width, bb->height);
@@ -204,7 +260,7 @@ void MultiTrack::processImage(const Mat &img)
 
       if(detectorEnabled)// && (!alternating || t->tracker->trackerBB == NULL))//medianFlowTracker->trackerBB == NULL))
       {
-          t->detectorCascade->detect(grey_frame, currImg);
+          t->detectorCascade->detect(grey_frame, currImg);//, t->tracker->trackerBB);
       }
 
       fuseHypotheses(t);
@@ -277,15 +333,33 @@ void MultiTrack::fuseHypotheses(Target_t *t)
     }
     else if(numClusters == 1)
     {
-        std::cout << "redect" << std::endl;
         if(t->currBB)
         {
             delete t->currBB;
             t->currBB = NULL;
         }
-        t->currBB = tldCopyRect(detectorBB);
-        t->currConf = confDetector;
-        t->tracker->place(*detectorBB);
+
+        float maxOverlap = 0,
+              overlap = 0;
+
+        for (auto const& tg : targets) 
+        {
+          if (tg->currBB) {
+            overlap = tldOverlapRectRect(*tg->currBB, *detectorBB);
+            maxOverlap = overlap > maxOverlap ? overlap : maxOverlap;
+          }
+        }
+
+        if (maxOverlap < 0.1)
+        {
+          t->currBB = tldCopyRect(detectorBB);
+          t->currConf = confDetector;
+          t->valid = true;
+          //t->tracker->place(*detectorBB);
+          delete t->tracker;
+          t->tracker = new KCFTracker();
+          t->tracker->init(currImgGrey, *detectorBB);
+        }
     }
 
     /*
@@ -470,7 +544,7 @@ void MultiTrack::learn(Target_t *t)
 
     if(!detectionResult->containsValidData)
     {
-        t->detectorCascade->detect(currImgGrey);
+        t->detectorCascade->detect(currImgGrey, currImg);
     }
 
     //This is the positive patch
@@ -548,7 +622,7 @@ void MultiTrack::learn(Target_t *t)
 
     t->detectorCascade->nnClassifier->learn(patches);
 
-    //cout << "NN has now " << t->detectorCascade->nnClassifier->truePositives->size() << " positives and " << t->detectorCascade->nnClassifier->falsePositives->size() << " negatives.\n";
+    //cout << "NN " << t->targetNumber << " has now " << t->detectorCascade->nnClassifier->truePositives->size() << " positives and " << t->detectorCascade->nnClassifier->falsePositives->size() << " negatives.\n";
 
     delete[] overlap;
     //cout << endl << endl;

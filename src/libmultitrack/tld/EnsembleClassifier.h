@@ -56,7 +56,7 @@ class EnsembleClassifier
 
     DetectionResult *detectionResult;
 
-    EnsembleClassifier();
+    EnsembleClassifier(int nT, int nF);
     virtual ~EnsembleClassifier();
     void init();
     void initFeatureLocations();

@@ -1,6 +1,7 @@
 #include <opencv2/core/utility.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/dnn/dnn.hpp>
 #include <iostream>
 #include <cstring>
 #include <string>
@@ -29,6 +30,8 @@ using namespace cv;
 int main( int argc, char** argv ){
   // show help
   // declares all required variables
+  dnn::Net detector = dnn::readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
+  detector = dnn::readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
   Mat frame;
   Rect roi;
   int frameCount = 0;
@@ -36,9 +39,11 @@ int main( int argc, char** argv ){
   // create a tracker object
   tld::MultiTrack *tld = new tld::MultiTrack();
   // set input video
-  VideoCapture cap("/home/jgouws/tldSourceCode/frames/TakiTaki/%04d.jpg");
+  VideoCapture cap("/home/jgouws/tldSourceCode/frames/TakiTaki1080p/%04d.png");
 
   cap >> frame;
+  int imw;
+  int imh;
   /*
   roi = selectROI("tracker",frame);
   //quit if ROI was not selected
@@ -49,11 +54,14 @@ int main( int argc, char** argv ){
   */
   // perform the tracking process
   printf("Start the tracking process, press ESC to quit.\n");
-  while(frameCount < 170){
+  //193 -> 700
+  while(frameCount < 192){
     cap >> frame;
     frameCount++;
     tld->processImage(frame);
   }
+
+  std::vector<Rect> faces;
 
   /*
   bool isColor = (frame.type() == CV_8UC3);
@@ -69,22 +77,54 @@ int main( int argc, char** argv ){
     cout << "writer opened" << endl;
   */
   int i = 0;
+  float minConfidence = 0.15;
   vector<pair<Rect, int>> targets;
   chrono::steady_clock::time_point begin, end;
-  for (;i <= 500; i++){
+  for (;i <= 700; i++){
     /*
     if(frameCount == 163){
       imshow("tracker", frame);
       waitKey(10000);
     }*/
-    if(frameCount == 170) {
+    if(frameCount == 192) {
       //roi=selectROI("tracker",frame);
-      roi = Rect(242, 135, 22, 28);
-      cout << roi;
+
+      imw = frame.cols;
+      imh = frame.rows;
+      cout << imw << "x" << imh << endl;
+      Mat blob = dnn::blobFromImage(frame, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
+
+      detector.setInput(blob, "data");
+
+      Mat results = detector.forward("detection_out");
+
+      Mat detectionMat(results.size[2], results.size[3], CV_32F, results.ptr<float>());
+
+      for(int i = 0; i < detectionMat.rows; i++)
+      {
+          float confidence = detectionMat.at<float>(i, 2);
+
+          if(confidence > minConfidence)
+          {
+              int xLeftBottom = static_cast<int>(detectionMat.at<float>(i, 3) * imw);
+              int yLeftBottom = static_cast<int>(detectionMat.at<float>(i, 4) * imh);
+              int xRightTop = static_cast<int>(detectionMat.at<float>(i, 5) * imw);
+              int yRightTop = static_cast<int>(detectionMat.at<float>(i, 6) * imh);
+
+              Rect object((int)xLeftBottom, (int)yLeftBottom,
+                          (int)(xRightTop - xLeftBottom),
+                          (int)(yRightTop - yLeftBottom));
+
+              tld->addTarget(&object);
+              cout << object << endl;
+          }
+      }
+      Rect object(557, 147,
+                  48, 61);
+
+      tld->addTarget(&object);
+
       begin = chrono::steady_clock::now();
-      tld->addTarget(&roi);
-      roi = Rect(356, 126, 23, 30);
-      tld->addTarget(&roi);
       tracking = true;
       i = 1;
     }
@@ -99,7 +139,22 @@ int main( int argc, char** argv ){
 
       for(int i = 0; i < targets.size(); i++)
       {
-        Scalar color = targets.at(i).second == 0 ? Scalar( 0, 255, 0) : Scalar( 255, 0, 0);
+        Scalar color;
+        switch(targets.at(i).second)
+        {
+          case 0:
+            color = Scalar( 0, 255, 0);
+          break;
+          case 1:
+            color = Scalar( 0, 0, 255);
+          break;
+          case 2:
+            color = Scalar( 255, 0, 0);
+          break;
+          case 3:
+            color = Scalar( 255, 0, 255);
+          break;
+        }
         rectangle(frame, targets.at(i).first, color, 2, 1 );
       }
     }

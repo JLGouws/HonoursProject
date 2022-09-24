@@ -55,6 +55,7 @@ int main(int argc, char** argv){
     {
       Rect roi=selectROI("tracker", image);
       tracker->addTarget(&roi);
+      std::cout << roi << std::endl;
     }
   }
 

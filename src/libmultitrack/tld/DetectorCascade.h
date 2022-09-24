@@ -67,6 +67,8 @@ class DetectorCascade
     int numWindows;
     int *windows;
     int *windowOffsets;
+    int numScales;
+    cv::Size *scales;
 
     //State data
     bool initialised;
@@ -86,8 +88,8 @@ class DetectorCascade
     DetectorCascade(DnnFilter *dnnFilter);
     DetectorCascade(DnnFilter *dnnFilter, long frameNumber);
     ~DetectorCascade();
-
-    void init();
+void init();
+    void init(int numWindows, int *windows, int *windowOffsets, int numScales, cv::Size *scales);
 
     void initWindowOffsets();
     void initWindowsAndScales();
@@ -96,11 +98,11 @@ class DetectorCascade
     void cleanPreviousData();
     void detect(const cv::Mat &img);
     void detect(const cv::Mat &greyImg, const cv::Mat &colImg);
+    void detect(const cv::Mat &greyImg, const cv::Mat &colImg, const cv::Rect *trackerBB);
+    void detect(const cv::Mat &greyImg, const cv::Mat &colImg, const bool valid);
 
   private:
     //Working data
-    int numScales;
-    cv::Size *scales;
     long frameNumber;
 };
 

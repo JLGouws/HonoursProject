@@ -107,6 +107,7 @@ namespace KCF
 
   void KCFTracker::track(Mat &img, Rect *prevBB)
   {
+    cleanPreviousData();
     trackerBB = pimpl->trackImpl(img, prevBB);
   }
 }

@@ -36,7 +36,7 @@ namespace tld
 
 NNClassifier::NNClassifier()
 {
-    thetaFP = .5;
+    thetaFP = .50;
     thetaTP = .65;
 
     truePositives = new vector<NormalizedPatch>();

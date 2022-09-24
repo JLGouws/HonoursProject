@@ -49,7 +49,7 @@ void KCF_Tracker::init(const cv::Mat &img, const cv::Rect & bbox)
 
     // don't need too large image
     if (p_pose.w * p_pose.h > 100.*100.) {
-        std::cout << "resizing image by factor of 2" << std::endl;
+        //std::cout << "resizing image by factor of 2" << std::endl;
         p_resize_image = true;
         p_pose.scale(0.5);
         cv::resize(input_gray, input_gray, cv::Size(0,0), 0.5, 0.5, cv::INTER_AREA);
@@ -74,9 +74,9 @@ void KCF_Tracker::init(const cv::Mat &img, const cv::Rect & bbox)
     p_min_max_scale[0] = std::pow(p_scale_step, std::ceil(std::log(min_size_ratio) / log(p_scale_step)));
     p_min_max_scale[1] = std::pow(p_scale_step, std::floor(std::log(max_size_ratio) / log(p_scale_step)));
 
-    std::cout << "init: img size " << img.cols << " " << img.rows << std::endl;
-    std::cout << "init: win size. " << p_windows_size[0] << " " << p_windows_size[1] << std::endl;
-    std::cout << "init: min max scales factors: " << p_min_max_scale[0] << " " << p_min_max_scale[1] << std::endl;
+//    std::cout << "init: img size " << img.cols << " " << img.rows << std::endl;
+//    std::cout << "init: win size. " << p_windows_size[0] << " " << p_windows_size[1] << std::endl;
+//    std::cout << "init: min max scales factors: " << p_min_max_scale[0] << " " << p_min_max_scale[1] << std::endl;
 
     p_output_sigma = std::sqrt(p_pose.w*p_pose.h) * p_output_sigma_factor / static_cast<double>(p_cell_size);
 

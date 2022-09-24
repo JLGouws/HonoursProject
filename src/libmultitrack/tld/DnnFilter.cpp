@@ -23,14 +23,49 @@ DnnFilter::DnnFilter(long frame = 0)
 {
     enabled = true;
     frameNumber = frame;
-    minOverlap = 0.6;
+    minOverlap = 0.75;
+    minConfidence = 0.2;
     windows = NULL;
+    sFaces = NULL;
+    numWindows = -1;
     init = false;
 }
 
 DnnFilter::~DnnFilter()
 {
   init = false;
+}
+
+void DnnFilter::calcFaces()
+{
+    if(sFaces == NULL)
+    {
+      sFaces = new bool[numWindows];
+      rPatch = new bool[numWindows];
+    }
+
+    #pragma omp parallel for
+
+    for(int i = 0; i < numWindows; i++)
+    {
+
+      rPatch[i] = false;
+      int *off = windows + TLD_WINDOW_SIZE * i;
+
+      float max = 0.,
+            overlap;
+
+      for (const auto &face :faces) 
+      {
+        overlap = tldOverlapBBRect(off, face);
+        max = overlap > max ? overlap : max;
+      }
+
+      sFaces[i] = max > minOverlap;
+//      if (!sFaces[i])
+//        rPatch[i] = rand() < RAND_MAX / 100;
+
+    }
 }
 
 float DnnFilter::calcFace(int *off)
@@ -74,7 +109,6 @@ void DnnFilter::nextIteration(const Mat &img, long frame)
         for(int i = 0; i < detectionMat.rows; i++)
         {
             float confidence = detectionMat.at<float>(i, 2);
-
             if(confidence > minConfidence)
             {
                 int xLeftBottom = static_cast<int>(detectionMat.at<float>(i, 3) * imw);
@@ -90,27 +124,29 @@ void DnnFilter::nextIteration(const Mat &img, long frame)
             }
         }
 
-        frameNumber++;
+        calcFaces();
+
+        frameNumber = frame;
     }
 }
 
 bool DnnFilter::filter(int i)
 {
-    if(!enabled) return true;
 
-    float bboxoverlap = calcFace(windows + TLD_WINDOW_OFFSET_SIZE * i);
+    return sFaces[i] || rPatch[i];
+}
 
+bool DnnFilter::filter(int i, const Rect *trackerBB)
+{
+  if (trackerBB == NULL)
+    return sFaces[i]; 
+  else
+    return sFaces[i] || rPatch[i];
+}
 
-    detectionResult->overlaps[i] = bboxoverlap;
-
-    if(bboxoverlap < minOverlap)
-    {
-      return rand() < RAND_MAX / 5;
-    }
-
-    //std::cout << "Found face: " << bboxoverlap << " frame: " << frameNumber << std::endl;
-
-    return true;
+bool DnnFilter::filter(int i, const bool valid)
+{
+    return (valid && rPatch[i]) || sFaces[i];
 }
 
 } /* namespace tld */

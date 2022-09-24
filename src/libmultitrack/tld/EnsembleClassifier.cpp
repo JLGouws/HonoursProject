@@ -43,15 +43,15 @@ namespace tld
 //TODO: Convert this to a function
 #define sub2idx(x,y,widthstep) ((int) (floor((x)+0.5) + floor((y)+0.5)*(widthstep)))
 
-EnsembleClassifier::EnsembleClassifier() :
+EnsembleClassifier::EnsembleClassifier(int nT, int nF) :
     features(NULL),
     featureOffsets(NULL),
     posteriors(NULL),
     positives(NULL),
     negatives(NULL)
 {
-    numTrees = 10;
-    numFeatures = 10;
+    numTrees = nT;
+    numFeatures = nF;
     enabled = true;
 }
 
@@ -63,6 +63,7 @@ EnsembleClassifier::~EnsembleClassifier()
 
 void EnsembleClassifier::init()
 {
+    srand(369);
     numIndices = pow(2.0f, numFeatures);
 
     initFeatureLocations();
