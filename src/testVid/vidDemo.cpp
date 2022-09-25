@@ -9,6 +9,7 @@
 
 #include "TLD.h" 
 
+/*
 //https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
 template<typename ... Args>
 std::string string_format( const std::string& format, Args ... args )
@@ -20,6 +21,7 @@ std::string string_format( const std::string& format, Args ... args )
     std::snprintf( buf.get(), size, format.c_str(), args ... );
     return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
 }
+*/
 
 using namespace std;
 using namespace cv;
@@ -34,6 +36,7 @@ int main( int argc, char** argv ){
   tld::TLD *tld = new tld::TLD();
   // set input video
   VideoCapture cap("/home/jgouws/tldSourceCode/frames/TakiTaki/%04d.jpg");
+  char buff[1000];
 
   cap >> frame;
   /*
@@ -101,7 +104,8 @@ int main( int argc, char** argv ){
       }
     }
     imshow("tracker", frame);
-    imwrite(string_format("/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i), frame);
+    sprintf(buff, "/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i);
+    imwrite(buff, frame);
     /*
     // show image with the tracked object
     if(waitKey(5)==115) {

@@ -48,8 +48,7 @@ public:
     bool learningEnabled;
     bool alternating;
 
-//    MedianFlowTracker *medianFlowTracker;
-    KCF::KCFTracker *kcfTracker;
+    MedianFlowTracker *medianFlowTracker;
     DetectorCascade *detectorCascade;
     NNClassifier *nnClassifier;
     bool valid;

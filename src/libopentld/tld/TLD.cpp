@@ -53,7 +53,7 @@ TLD::TLD()
     detectorCascade = new DetectorCascade();
     nnClassifier = detectorCascade->nnClassifier;
 
-    kcfTracker = new KCFTracker();//medianFlowTracker = new MedianFlowTracker();
+    medianFlowTracker = new MedianFlowTracker();
 }
 
 TLD::~TLD()
@@ -72,16 +72,18 @@ TLD::~TLD()
         detectorCascade = NULL;
     }
 
-    /*if(medianFlowTracker)
+    if(medianFlowTracker)
     {
         delete medianFlowTracker;
         medianFlowTracker = NULL;
-    }*/
+    }
+    /*
     if(kcfTracker)
     {
         delete kcfTracker;
         kcfTracker = NULL;
     }
+    */
 
     if(prevBB)
     {
@@ -93,7 +95,7 @@ TLD::~TLD()
 void TLD::release()
 {
     detectorCascade->release();
-    kcfTracker->cleanPreviousData();//medianFlowTracker->cleanPreviousData();
+    medianFlowTracker->cleanPreviousData();
 
     if(currBB)
     {
@@ -122,7 +124,7 @@ void TLD::storeCurrentData()
     }
 
     detectorCascade->cleanPreviousData(); //Reset detector results
-    kcfTracker->cleanPreviousData();//medianFlowTracker->cleanPreviousData();
+    medianFlowTracker->cleanPreviousData();
 
     wasValid = valid;
 }
@@ -144,7 +146,6 @@ void TLD::selectObject(const Mat &img, Rect *bb)
         delete currBB;
         currBB = NULL;
     }
-    kcfTracker->init(img, *bb);
     currBB = tldCopyRect(bb);
     currConf = 1;
     valid = true;
@@ -162,10 +163,10 @@ void TLD::processImage(const Mat &img)
 
     if(trackerEnabled)
     {
-        kcfTracker->track(currImg, prevBB);//medianFlowTracker->track(prevImg, currImg, prevBB);
+        medianFlowTracker->track(prevImg, currImg, prevBB);
     }
 
-    if(detectorEnabled && (!alternating || kcfTracker->trackerBB == NULL))//medianFlowTracker->trackerBB == NULL))
+    if(detectorEnabled && (!alternating || medianFlowTracker->trackerBB == NULL))
     {
         detectorCascade->detect(grey_frame);
     }
@@ -178,7 +179,7 @@ void TLD::processImage(const Mat &img)
 
 void TLD::fuseHypotheses()
 {
-    Rect *trackerBB = kcfTracker->trackerBB;//Rect *trackerBB = medianFlowTracker->trackerBB;
+    Rect *trackerBB = medianFlowTracker->trackerBB;
     int numClusters = detectorCascade->detectionResult->numClusters;
     Rect *detectorBB = detectorCascade->detectionResult->detectorBB;
 

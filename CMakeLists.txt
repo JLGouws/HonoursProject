@@ -52,6 +52,7 @@ option(USE_SYSTEM_LIBS "Use the installed version of libconfig++." OFF)
 option(WITH_OPENMP "Use OpenMP." OFF)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+set (CMAKE_CXX_STANDARD 14)
 
 if(WITH_OPENMP)
 	find_package(OpenMP REQUIRED)
