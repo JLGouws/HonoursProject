@@ -200,7 +200,7 @@ void MultiTrack::addTarget(const Mat &im, Rect *bb)
 
     patches.push_back(patch);
 
-    t->detectorCascade->nnClassifier->learn(patches);
+    tg->detectorCascade->nnClassifier->learn(patches);
 }
 
 void MultiTrack::addTarget(Rect *bb)

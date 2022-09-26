@@ -73,6 +73,7 @@ class MultiTrack
     void release();
 //    void selectObject(const cv::Mat &img, cv::Rect *bb);
     void init(const cv::Mat &img, cv::Rect *bb);
+    void addTarget(const cv::Mat &im, cv::Rect *bb);
     void addTarget(cv::Rect *bb);
     void processImage(const cv::Mat &img);
     std::vector<std::pair<cv::Rect, int>> getResults();
