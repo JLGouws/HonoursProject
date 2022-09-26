@@ -42,6 +42,8 @@ int main(int argc, char** argv){
 
   double totalOverlap = 0.;
   int numFrame = 0;
+  float tP = 0, fP = 0, tN = 0, fN = 0;
+  float currOverlap;
 
 
   if(argc == 2) video = argv[1];
@@ -75,14 +77,32 @@ int main(int argc, char** argv){
 
     tracker->processImage(image);
 
-    if(tracker-> currBB != NULL)
+    currOverlap = 0.;
+    if(tracker->currBB != NULL)
     {
       bb = Rect(tracker->currBB->x, tracker->currBB->y, tracker->currBB->width, tracker->currBB->height);
       rectangle(image, bb, Scalar( 0, 255, 0), 2, 1 );
       if (videoInfo->cur) {
-
-        totalOverlap += tld::tldOverlapRectRect(bb, videoInfo->cur->rect[0]);
+        currOverlap = tld::tldOverlapRectRect(bb, videoInfo->cur->rect[0]);
+        totalOverlap += currOverlap;
+        if (currOverlap > 0.5)
+          tP ++;
+        else
+          fP ++;
       }
+      else
+      {
+        fP ++;
+      }
+
+
+    }
+    else
+    {
+      if (videoInfo->cur)
+        fN ++;
+      else
+        tN++;
     }
 
     if (videoInfo->cur) {
@@ -98,6 +118,10 @@ int main(int argc, char** argv){
     if(waitKey(20)==27)break;
   }
 
+  float prec = tP / (tP + fP), rec = tP / (tP + fN);
+  cout << "Precision: " << prec << endl;
+  cout << "Recall: " << rec << endl;
+  cout << "F: " << 2 * prec * rec / (prec + rec) << endl;
   cout << "Average overlap: " << totalOverlap / numFrame << endl;
 
   videoInfo->cur = videoInfo->head;
