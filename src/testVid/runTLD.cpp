@@ -65,6 +65,7 @@ int main(int argc, char** argv){
   tracker->selectObject(grey, videoInfo->initRoi);
 
   videoInfo->cur = videoInfo->cur->next;
+  cout << "hi: " << videoInfo->cur << endl;
 
 
   Rect bb;
