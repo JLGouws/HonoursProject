@@ -28,7 +28,7 @@ add_executable(OTBtest
 
 target_link_libraries(vidDemo main libopentld libmultitrack cvblobs config++ kcf ${OpenCV_LIBS})
 
-target_link_libraries(OTBtest main libopentld libmultitrack cvblobs config++ kcf ${OpenCV_LIBS})
+target_link_libraries(OTBtest main libmultitrack cvblobs config++ kcf ${OpenCV_LIBS})
 
 target_link_libraries(multitest main libopentld libmultitrack cvblobs config++ kcf ${OpenCV_LIBS})
 

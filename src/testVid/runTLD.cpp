@@ -13,6 +13,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace tld;
 
 
 void playVideo(VidInfo *videoInfo) {
@@ -42,6 +43,9 @@ int main(int argc, char** argv){
 
   double totalOverlap = 0.;
   int numFrame = 0;
+  float tP = 0, fP = 0, tN = 0, fN = 0;
+  float currOverlap;
+
 
 
   if(argc == 2) video = argv[1];
@@ -78,10 +82,29 @@ int main(int argc, char** argv){
     targets.clear();
     targets = tracker->getResults();
 
-    for(int i = 0; i < targets.size(); i++)
+    if(targets.size() == 1)
     {
       Scalar color = Scalar( 0, 255, 0);
-      rectangle(image, targets.at(i).first, color, 2, 1 );
+      rectangle(image, targets.at(0).first, color, 2, 1 );
+      if (videoInfo->cur) {
+        currOverlap = tldOverlapRectRect(targets.at(0).first, videoInfo->cur->rect[0]);
+        totalOverlap += currOverlap;
+        if (currOverlap > 0.5)
+          tP ++;
+        else
+          fP ++;
+      }
+      else
+      {
+        fP ++;
+      }
+    }
+    else
+    {
+      if (videoInfo->cur)
+        fN ++;
+      else
+        tN++;
     }
 
     if (videoInfo->cur) {
@@ -97,6 +120,10 @@ int main(int argc, char** argv){
     if(waitKey(20)==27)break;
   }
 
+  float prec = tP / (tP + fP), rec = tP / (tP + fN);
+  cout << "Precision: " << prec << endl;
+  cout << "Recall: " << rec << endl;
+  cout << "F: " << 2 * prec * rec / (prec + rec) << endl;
   cout << "Average overlap: " << totalOverlap / numFrame << endl;
 
   videoInfo->cur = videoInfo->head;
