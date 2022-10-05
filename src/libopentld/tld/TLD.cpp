@@ -234,6 +234,12 @@ void TLD::fuseHypotheses()
             delete currBB;
             currBB = NULL;
         }
+        if(kcfTracker)
+        {
+            delete kcfTracker;
+            kcfTracker = new KCFTracker();
+            kcfTracker->init(currImg, *detectorBB);
+        }
         currBB = tldCopyRect(detectorBB);
         currConf = confDetector;
     }
