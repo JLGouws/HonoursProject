@@ -1,9 +1,12 @@
 #include <opencv2/core/utility.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/dnn/dnn.hpp>
 #include <iostream>
 #include <cstring>
 #include <string>
+#include <stdlib.h>
+#include <stdio.h>
 #include <stdexcept>
 #include <chrono>
 
@@ -26,19 +29,27 @@ std::string string_format( const std::string& format, Args ... args )
 using namespace std;
 using namespace cv;
 int main( int argc, char** argv ){
+  FILE *out = fopen("output.txt", "w");
   // show help
   // declares all required variables
+  dnn::Net detector = dnn::readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
+  detector = dnn::readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
   Mat frame;
   Rect roi;
   int frameCount = 0;
   bool tracking = false;
   // create a tracker object
-  tld::TLD *tld = new tld::TLD();
+  tld::TLD *trackers[3];
+  trackers[0] = new tld::TLD();
+  trackers[1] = new tld::TLD();
+  trackers[2] = new tld::TLD();
   // set input video
-  VideoCapture cap("/home/jgouws/tldSourceCode/frames/TakiTaki/%04d.jpg");
-  char buff[1000];
+  VideoCapture cap("/home/jgouws/tldSourceCode/frames/TakiTaki1080p/%04d.png");
 
   cap >> frame;
+
+  int imw;
+  int imh;
   /*
   roi = selectROI("tracker",frame);
   //quit if ROI was not selected
@@ -49,17 +60,13 @@ int main( int argc, char** argv ){
   */
   // perform the tracking process
   printf("Start the tracking process, press ESC to quit.\n");
-  while(frameCount < 162){
+  //193 -> 700
+  while(frameCount < 192){
     cap >> frame;
     frameCount++;
   }
 
-  Mat grey(frame.rows, frame.cols, CV_8UC1);
-  cvtColor(frame, grey, CV_BGR2GRAY);
-
-  tld->detectorCascade->imgWidth = grey.cols;
-  tld->detectorCascade->imgHeight = grey.rows;
-  tld->detectorCascade->imgWidthStep = grey.step;
+  std::vector<Rect> faces;
 
   /*
   bool isColor = (frame.type() == CV_8UC3);
@@ -74,38 +81,112 @@ int main( int argc, char** argv ){
   else
     cout << "writer opened" << endl;
   */
+    //roi=selectROI("tracker",frame);
+
+  float minConfidence = 0.15;
+
+  imw = frame.cols;
+  imh = frame.rows;
+  cout << imw << "x" << imh << endl;
+  Mat blob = dnn::blobFromImage(frame, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
+
+  detector.setInput(blob, "data");
+
+  Mat results = detector.forward("detection_out");
+
+  Mat detectionMat(results.size[2], results.size[3], CV_32F, results.ptr<float>());
+
+  Mat grey(frame.rows, frame.cols, CV_8UC1);
+  cvtColor(frame, grey, CV_BGR2GRAY);
+  for(int i = 0; i < 3; i++)
+  {
+    trackers[i]->detectorCascade->imgWidth = grey.cols;
+    trackers[i]->detectorCascade->imgHeight = grey.rows;
+    trackers[i]->detectorCascade->imgWidthStep = grey.step;
+  }
+
+  int k = 0;
+  for(int i = 0; i < detectionMat.rows; i++)
+  {
+      float confidence = detectionMat.at<float>(i, 2);
+
+      if(confidence > minConfidence)
+      {
+          int xLeftBottom = static_cast<int>(detectionMat.at<float>(i, 3) * imw);
+          int yLeftBottom = static_cast<int>(detectionMat.at<float>(i, 4) * imh);
+          int xRightTop = static_cast<int>(detectionMat.at<float>(i, 5) * imw);
+          int yRightTop = static_cast<int>(detectionMat.at<float>(i, 6) * imh);
+
+          Rect object((int)xLeftBottom, (int)yLeftBottom,
+                      (int)(xRightTop - xLeftBottom),
+                      (int)(yRightTop - yLeftBottom));
+
+          trackers[k]->selectObject(grey, &object);
+          k++;
+      }
+  }
+  Rect object(557, 147,
+              48, 61);
+
+  trackers[k]->selectObject(grey, &object);
+  k++;
+
+  tracking = true;
+
   int i = 0;
+  vector<pair<Rect, pair<int, float>>> targets;
   chrono::steady_clock::time_point begin, end;
-  for (;i <= 350; i++){
+  begin = chrono::steady_clock::now();
+  for (;i <= 600; i++){
     /*
     if(frameCount == 163){
       imshow("tracker", frame);
       waitKey(10000);
     }*/
-    if(frameCount == 162) {
-      //roi=selectROI("tracker",frame);
-      roi = Rect(256, 142, 20, 25);
-      cout << roi;
-      begin = chrono::steady_clock::now();
-      tld->selectObject(grey, &roi);
-      tracking = true;
-      i = 1;
-    }
     // get frame from the video
     cap >> frame;
     frameCount++;
     // update the tracking result
     if(tracking) {
-      tld->processImage(frame);
-      if(tld-> currBB != NULL)
+      for(int q = 0; q < 3; q++)
+        trackers[q]->processImage(frame);
+      targets.clear();
+      for(int q = 0; q < 3; q++)
       {
-        roi = Rect(tld->currBB->x, tld->currBB->y, tld->currBB->width, tld->currBB->height);
-        rectangle(frame, roi, Scalar( 0, 255, 0), 2, 1 );
+        if(trackers[q]->currBB != NULL)
+        {
+          targets.push_back(pair<Rect, pair<int, float>>(*trackers[q]->currBB, pair<int, float>(q, trackers[q]->currConf)));
+        }
+      }
+
+      for(int j = 0; j < targets.size(); j++)
+      {
+        Scalar color;
+        switch(targets.at(j).second.first)
+        {
+          case 0:
+            color = Scalar( 0, 255, 0);
+          break;
+          case 1:
+            color = Scalar( 0, 0, 255);
+          break;
+          case 2:
+            color = Scalar( 255, 0, 0);
+          break;
+          case 3:
+            color = Scalar( 255, 0, 255);
+          break;
+        }
+        rectangle(frame, targets.at(j).first, color, 2, 1 );
+        Rect bb = targets.at(j).first;
+        fprintf(out, "%05d %d,%d,%d,%d,%d,%f\n", i, targets.at(j).second, bb.x, bb.y, bb.width, bb.height, targets.at(j).second.second);
       }
     }
+
+    fprintf(out, "\n");
+
     imshow("tracker", frame);
-    sprintf(buff, "/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i);
-    imwrite(buff, frame);
+    //imwrite(string_format("/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i), frame);
     /*
     // show image with the tracked object
     if(waitKey(5)==115) {
@@ -117,7 +198,7 @@ int main( int argc, char** argv ){
     }
     */
     //quit on ESC button
-    //if(waitKey(20)==27)break;
+    if(waitKey(10)==27)break;
   }
   
   end = chrono::steady_clock::now();
@@ -125,8 +206,10 @@ int main( int argc, char** argv ){
   cout << "Frames: " << i << endl;
   cout << "fps: " << 1e6 * (double) i / chrono::duration_cast<chrono::microseconds> (end - begin).count()  << endl;
   cap.release();
+  fclose(out);
   //writer.release();
-  delete tld;
+  for (int q = 0; q < 3; q++)
+    delete trackers[q];
 
   return 0;
 }
