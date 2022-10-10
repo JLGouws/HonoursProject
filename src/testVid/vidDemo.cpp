@@ -6,6 +6,7 @@
 #include <cstring>
 #include <string>
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdexcept>
 #include <chrono>
 
@@ -28,6 +29,7 @@ std::string string_format( const std::string& format, Args ... args )
 using namespace std;
 using namespace cv;
 int main( int argc, char** argv ){
+  FILE *out = fopen("output.txt", "w");
   // show help
   // declares all required variables
   dnn::Net detector = dnn::readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000_fp16.caffemodel");
@@ -76,58 +78,57 @@ int main( int argc, char** argv ){
   else
     cout << "writer opened" << endl;
   */
-  int i = 0;
+    //roi=selectROI("tracker",frame);
+
   float minConfidence = 0.15;
-  vector<pair<Rect, int>> targets;
+
+  imw = frame.cols;
+  imh = frame.rows;
+  cout << imw << "x" << imh << endl;
+  Mat blob = dnn::blobFromImage(frame, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
+
+  detector.setInput(blob, "data");
+
+  Mat results = detector.forward("detection_out");
+
+  Mat detectionMat(results.size[2], results.size[3], CV_32F, results.ptr<float>());
+
+  for(int i = 0; i < detectionMat.rows; i++)
+  {
+      float confidence = detectionMat.at<float>(i, 2);
+
+      if(confidence > minConfidence)
+      {
+          int xLeftBottom = static_cast<int>(detectionMat.at<float>(i, 3) * imw);
+          int yLeftBottom = static_cast<int>(detectionMat.at<float>(i, 4) * imh);
+          int xRightTop = static_cast<int>(detectionMat.at<float>(i, 5) * imw);
+          int yRightTop = static_cast<int>(detectionMat.at<float>(i, 6) * imh);
+
+          Rect object((int)xLeftBottom, (int)yLeftBottom,
+                      (int)(xRightTop - xLeftBottom),
+                      (int)(yRightTop - yLeftBottom));
+
+          tld->addTarget(&object);
+          cout << object << endl;
+      }
+  }
+  Rect object(557, 147,
+              48, 61);
+
+  tld->addTarget(&object);
+
+  tracking = true;
+
+  int i = 0;
+  vector<pair<Rect, pair<int, float>>> targets;
   chrono::steady_clock::time_point begin, end;
-  for (;i <= 700; i++){
+  begin = chrono::steady_clock::now();
+  for (;i <= 600; i++){
     /*
     if(frameCount == 163){
       imshow("tracker", frame);
       waitKey(10000);
     }*/
-    if(frameCount == 192) {
-      //roi=selectROI("tracker",frame);
-
-      imw = frame.cols;
-      imh = frame.rows;
-      cout << imw << "x" << imh << endl;
-      Mat blob = dnn::blobFromImage(frame, 1.0, Size(300, 300), Scalar(104.0, 177.0, 123.0), false, false);
-
-      detector.setInput(blob, "data");
-
-      Mat results = detector.forward("detection_out");
-
-      Mat detectionMat(results.size[2], results.size[3], CV_32F, results.ptr<float>());
-
-      for(int i = 0; i < detectionMat.rows; i++)
-      {
-          float confidence = detectionMat.at<float>(i, 2);
-
-          if(confidence > minConfidence)
-          {
-              int xLeftBottom = static_cast<int>(detectionMat.at<float>(i, 3) * imw);
-              int yLeftBottom = static_cast<int>(detectionMat.at<float>(i, 4) * imh);
-              int xRightTop = static_cast<int>(detectionMat.at<float>(i, 5) * imw);
-              int yRightTop = static_cast<int>(detectionMat.at<float>(i, 6) * imh);
-
-              Rect object((int)xLeftBottom, (int)yLeftBottom,
-                          (int)(xRightTop - xLeftBottom),
-                          (int)(yRightTop - yLeftBottom));
-
-              tld->addTarget(&object);
-              cout << object << endl;
-          }
-      }
-      Rect object(557, 147,
-                  48, 61);
-
-      tld->addTarget(&object);
-
-      begin = chrono::steady_clock::now();
-      tracking = true;
-      i = 1;
-    }
     // get frame from the video
     cap >> frame;
     frameCount++;
@@ -137,10 +138,10 @@ int main( int argc, char** argv ){
       targets.clear();
       targets = tld->getResults();
 
-      for(int i = 0; i < targets.size(); i++)
+      for(int j = 0; j < targets.size(); j++)
       {
         Scalar color;
-        switch(targets.at(i).second)
+        switch(targets.at(j).second.first)
         {
           case 0:
             color = Scalar( 0, 255, 0);
@@ -155,10 +156,15 @@ int main( int argc, char** argv ){
             color = Scalar( 255, 0, 255);
           break;
         }
-        rectangle(frame, targets.at(i).first, color, 2, 1 );
+        rectangle(frame, targets.at(j).first, color, 2, 1 );
+        Rect bb = targets.at(j).first;
+        //fprintf(out, "%05d %d,%d,%d,%d,%d,%f\n", i, targets.at(j).second, bb.x, bb.y, bb.width, bb.height, targets.at(j).second.second);
       }
     }
-    imshow("tracker", frame);
+
+    //fprintf(out, "\n");
+
+    //imshow("tracker", frame);
     //imwrite(string_format("/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i), frame);
     /*
     // show image with the tracked object
@@ -179,6 +185,7 @@ int main( int argc, char** argv ){
   cout << "Frames: " << i << endl;
   cout << "fps: " << 1e6 * (double) i / chrono::duration_cast<chrono::microseconds> (end - begin).count()  << endl;
   cap.release();
+  fclose(out);
   //writer.release();
   delete tld;
 

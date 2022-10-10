@@ -271,12 +271,12 @@ void MultiTrack::processImage(const Mat &img)
     frameNumber++;
 }
 
-vector<pair<Rect, int>> MultiTrack::getResults()
+vector<pair<Rect, pair<int, float>>> MultiTrack::getResults()
 {
-  vector<pair<Rect, int>> results;
+  vector<pair<Rect, pair<int, float>>> results;
   for (auto const& t : targets) {
     if(t->currBB != NULL)
-      results.push_back(pair<Rect, int>(*t->currBB, t->targetNumber));
+      results.push_back(pair<Rect, pair<int, float>>(*t->currBB, pair<int, float>(t->targetNumber, t->currConf)));
   }
   return results;
 }

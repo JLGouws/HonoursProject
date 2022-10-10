@@ -76,7 +76,7 @@ class MultiTrack
     void addTarget(const cv::Mat &im, cv::Rect *bb);
     void addTarget(cv::Rect *bb);
     void processImage(const cv::Mat &img);
-    std::vector<std::pair<cv::Rect, int>> getResults();
+    std::vector< std::pair<cv::Rect, std::pair<int, float>> > getResults();
     void writeToFile(const char *path);
     void readFromFile(const char *path);
 

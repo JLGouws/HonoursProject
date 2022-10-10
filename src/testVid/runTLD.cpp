@@ -62,7 +62,7 @@ int main(int argc, char** argv){
 
   tracker->processImage(image);
 
-  vector<pair<Rect, int>> targets;
+  vector<pair<Rect, pair<int, float>>> targets;
 
   tracker->addTarget(videoInfo->initRoi);
 

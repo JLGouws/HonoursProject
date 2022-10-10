@@ -11,6 +11,7 @@
 
 #include "KCFTracker.h"
 #include "kcf.h"
+#include "stdio.h"
 
 using namespace cv;
 
@@ -23,25 +24,16 @@ namespace KCF
       virtual ~KCFTrackerImpl(){};
       Rect *trackImpl(cv::Mat &img, cv::Rect *prevBB);
       void initImpl(const cv::Mat &img, const cv::Rect &bbox);
-      void placeImpl(const cv::Rect &bbox);
     private:
       KCF_Tracker tracker;
+      float wMarg, hMarg;
   };
 
   void KCFTrackerImpl::initImpl(const Mat &img, const Rect &bbox)
   {
     tracker.init(img, bbox);
-  }
-
-  void KCFTrackerImpl::placeImpl(const Rect &bbox)
-  {
-    BBox_c bb;
-    double x1 = bbox.x, x2 = bbox.x + bbox.width, y1 = bbox.y, y2 = bbox.y + bbox.height;
-    bb.w = x2-x1;
-    bb.h = y2-y1;
-    bb.cx = x1 + bb.w/2.;
-    bb.cy = y1 + bb.h/2.;
-    tracker.updateTrackerPosition(bb);
+    wMarg = img.cols / 50.;
+    hMarg = img.rows / 50.;
   }
 
   Rect *KCFTrackerImpl::trackImpl(Mat &img, Rect *prevBB)
@@ -55,7 +47,7 @@ namespace KCF
 
           BBox_c bb = tracker.getBBox();
 
-          bool success = tracker.getMaxResponse() > 0.2;
+          bool success = tracker.getMaxResponse() > 0.15;
 
           //Extract subimage
           float x, y, w, h;
@@ -65,12 +57,16 @@ namespace KCF
           h = bb.h;
 
           //TODO: Introduce a check for a minimum size
-          if(!success || x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > img.cols || y + h > img.rows || x != x || y != y || w != w || h != h) //x!=x is check for nan
+          if(!success || x < - wMarg || y < -hMarg || w <= 0 || h <= 0 || x + w > img.cols + wMarg || y + h > img.rows + hMarg || x != x || y != y || w != w || h != h) //x!=x is check for nan
           {
             return NULL;
           }
           else
           {
+              w = std::min({w, x + w, img.cols - x});
+              h = std::min({h, y + h, img.rows - h});
+              x = std::max(x, .0f);
+              y = std::max(y, .0f);
               return new Rect(x, y, w, h);
           }
       }
@@ -100,14 +96,8 @@ namespace KCF
     pimpl->initImpl(img, bbox);
   }
 
-  void KCFTracker::place(const Rect &bbox)
-  {
-    pimpl->placeImpl(bbox);
-  }
-
   void KCFTracker::track(Mat &img, Rect *prevBB)
   {
-    cleanPreviousData();
     trackerBB = pimpl->trackImpl(img, prevBB);
   }
 }

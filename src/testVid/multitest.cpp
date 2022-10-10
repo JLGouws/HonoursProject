@@ -26,7 +26,7 @@ int main(int argc, char** argv){
   VideoCapture cap(0);
   // get bounding box
 
-  vector<pair<Rect, int>> targets;
+  vector<pair<Rect, pair<int, float>>> targets;
 
   Rect bb;
   for ( ;; ) {
@@ -43,7 +43,7 @@ int main(int argc, char** argv){
 
     for(int i = 0; i < targets.size(); i++)
     {
-      Scalar color = targets.at(i).second == 0 ? Scalar( 0, 255, 0) : Scalar( 255, 0, 0);
+      Scalar color = targets.at(i).second.first == 0 ? Scalar( 0, 255, 0) : Scalar( 255, 0, 0);
       rectangle(image, targets.at(i).first, color, 2, 1 );
     }
 
