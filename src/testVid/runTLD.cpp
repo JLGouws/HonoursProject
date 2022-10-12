@@ -56,7 +56,10 @@ int main(int argc, char** argv){
   0[videoInfo->video] >> image;
 
   Mat grey(image.rows, image.cols, CV_8UC1);
-  cvtColor(image, grey, CV_BGR2GRAY);
+  if(image.channels() == 3)
+    cvtColor(image, grey, CV_BGR2GRAY);
+  else
+    grey = image.clone();
 
   tracker->detectorCascade->imgWidth = grey.cols;
   tracker->detectorCascade->imgHeight = grey.rows;
