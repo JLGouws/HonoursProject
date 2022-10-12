@@ -33,7 +33,7 @@
 
 #include "MedianFlowTracker.h"
 #include "KCFTracker.h"
-#include "DetectorCascade.h"
+#include "Detector.h"
 
 namespace tld
 {
@@ -44,13 +44,12 @@ class MultiTrack
   {
       cv::Rect *currBB,
                *prevBB;
-      DetectorCascade *detectorCascade;
+      Detector *detector;
       KCF::KCFTracker *tracker;
       float currConf;
       bool valid,
            wasValid,
            learning;
-      NNClassifier *nnClassifier;
       int targetNumber;
   } Target_t;
 
@@ -77,8 +76,6 @@ class MultiTrack
     void addTarget(cv::Rect *bb);
     void processImage(const cv::Mat &img);
     std::vector< std::pair<cv::Rect, std::pair<int, float>> > getResults();
-    void writeToFile(const char *path);
-    void readFromFile(const char *path);
 
     private:
       long frameNumber;

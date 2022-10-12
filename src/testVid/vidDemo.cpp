@@ -158,11 +158,11 @@ int main( int argc, char** argv ){
         }
         rectangle(frame, targets.at(j).first, color, 2, 1 );
         Rect bb = targets.at(j).first;
-        //fprintf(out, "%05d %d,%d,%d,%d,%d,%f\n", i, targets.at(j).second, bb.x, bb.y, bb.width, bb.height, targets.at(j).second.second);
+        fprintf(out, "%05d %d,%d,%d,%d,%d,%f\n", i, targets.at(j).second, bb.x, bb.y, bb.width, bb.height, targets.at(j).second.second);
       }
     }
 
-    //fprintf(out, "\n");
+    fprintf(out, "\n");
 
     //imshow("tracker", frame);
     //imwrite(string_format("/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i), frame);

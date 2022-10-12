@@ -17,10 +17,12 @@ add_library(libmultitrack
     tld/Clustering.cpp
     tld/DetectionResult.cpp
     tld/DetectorCascade.cpp
+    tld/Detector.cpp
     tld/EnsembleClassifier.cpp
     tld/ForegroundDetector.cpp
     tld/MedianFlowTracker.cpp
     tld/NNClassifier.cpp
+    tld/CFClassifier.cpp
     tld/MultiTrack.cpp
     tld/TLDUtil.cpp
     tld/VarianceFilter.cpp
@@ -35,11 +37,13 @@ add_library(libmultitrack
     tld/Clustering.h
     tld/DetectionResult.h
     tld/DetectorCascade.h
+    tld/Detector.h
     tld/EnsembleClassifier.h
     tld/ForegroundDetector.h
     tld/IntegralImage.h
     tld/MedianFlowTracker.h
     tld/NNClassifier.h
+    tld/CFClassifier.h
     tld/NormalizedPatch.h
     tld/MultiTrack.h
     tld/TLDUtil.h

@@ -35,12 +35,13 @@ class DnnFilter
     bool *rPatch;
 
     void nextIteration(const cv::Mat &img, long frame);
+    void nextIterationSimple(const cv::Mat &img, long frame);
     bool filter(int idx);
     bool filter(int idx, const cv::Rect *trackerBB);
     bool filter(int idx, const bool valid);
     float minConfidence;
-  private:
     std::vector<cv::Rect> faces;
+  private:
     long frameNumber;
     cv::dnn::Net detector;
     float calcFace(int *off);
