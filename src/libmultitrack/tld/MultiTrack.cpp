@@ -247,8 +247,15 @@ void MultiTrack::processImage(const Mat &img)
     prevImg = currImg;
     Mat grey_frame;
     currImg = img;
-    cvtColor(img, grey_frame, CV_BGR2GRAY);
-    currImgGrey = grey_frame; // Store new image , right after storeCurrentData();
+    if(img.channels() == 3)
+    {
+      cvtColor(img, grey_frame, CV_BGR2GRAY);
+      currImgGrey = grey_frame; // Store new image , right after storeCurrentData();
+    }
+    else
+    {
+      currImgGrey = img.clone();
+    }
 
     for (auto const& t : targets) {
       storeCurrentTarget(t);
