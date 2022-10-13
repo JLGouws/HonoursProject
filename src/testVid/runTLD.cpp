@@ -94,7 +94,6 @@ int main(int argc, char** argv){
       else
       {
         fP ++;
-        cout << numFrame << endl;
       }
 
 
@@ -109,6 +108,7 @@ int main(int argc, char** argv){
 
     if (videoInfo->cur) {
       rectangle(image, videoInfo->cur->rect[0], Scalar( 0, 0, 255), 2, 1 );
+      cout << videoInfo->cur->rect[0] << endl;
       videoInfo->cur = videoInfo->cur->next;
       numFrame++;
     }
@@ -117,7 +117,7 @@ int main(int argc, char** argv){
     imshow("tracker", image);
 
     //quit on ESC button
-    if(waitKey(20)==27)break;
+    if(waitKey(200000)==27)break;
   }
 
   float prec = tP / (tP + fP), rec = tP / (tP + fN);
