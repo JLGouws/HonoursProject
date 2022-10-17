@@ -113,8 +113,8 @@ int main(int argc, char** argv){
       numFrame++;
     }
 
-    namedWindow("tracker", CV_WINDOW_AUTOSIZE);
-    imshow("tracker", image);
+    //namedWindow("tracker", CV_WINDOW_AUTOSIZE);
+    //imshow("tracker", image);
 
     //quit on ESC button
     if(waitKey(20)==27)break;
