@@ -64,7 +64,7 @@ void EnsembleClassifier::init()
 {
     numIndices = pow(2.0f, numFeatures);
 
-    srand(42);
+    srand(69);
 
     initFeatureLocations();
     initFeatureOffsets();
