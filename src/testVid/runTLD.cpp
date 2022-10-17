@@ -48,7 +48,7 @@ int main(int argc, char** argv){
 
   if(argc == 2) video = argv[1];
   videoInfo = load_video_info(basePath, video);
-  if(argv[1][0] == 'D' && argv[1][1] == 'a' && argv[1][2] == 'v') {
+  if(argv[1][0] == 'D' && argv[1][1] == 'a' && argv[1][2] == 'v'&& argv[1][3] == 'i'&& argv[1][4] == 'd'&& argv[1][4] == '/') {
     for(int i = 0; i < 299; i++)
       0[videoInfo->video] >> image;
   }
@@ -111,7 +111,7 @@ int main(int argc, char** argv){
     }
 
     if (videoInfo->cur) {
-      //rectangle(image, videoInfo->cur->rect[0], Scalar( 0, 0, 255), 2, 1 );
+      rectangle(image, videoInfo->cur->rect[0], Scalar( 0, 0, 255), 2, 1 );
       //cout <<  videoInfo->cur->rect[0] << endl;
       //cout <<  videoInfo->cur->next->rect[0] << endl;
       videoInfo->cur = videoInfo->cur->next;
