@@ -47,7 +47,7 @@ namespace KCF
 
           BBox_c bb = tracker.getBBox();
 
-          bool success = tracker.getMaxResponse() > 0.13;
+          bool success = tracker.getMaxResponse() > 0.17;
 
           //Extract subimage
           float x, y, w, h;
@@ -64,7 +64,7 @@ namespace KCF
           else
           {
               w = std::min({w, x + w, img.cols - x});
-              h = std::min({h, y + h, img.rows - h});
+              h = std::min({h, y + h, img.rows - y});
               x = std::max(x, .0f);
               y = std::max(y, .0f);
               return new Rect(x, y, w, h);

@@ -49,14 +49,16 @@ int main(int argc, char** argv){
   if(argc == 2) video = argv[1];
   videoInfo = load_video_info(basePath, video);
   if(argv[1][0] == 'D' && argv[1][1] == 'a' && argv[1][2] == 'v') {
-    cout << "David" << endl;
     for(int i = 0; i < 299; i++)
       0[videoInfo->video] >> image;
   }
   0[videoInfo->video] >> image;
 
   Mat grey(image.rows, image.cols, CV_8UC1);
-  cvtColor(image, grey, CV_BGR2GRAY);
+  if(image.channels() == 3)
+    cvtColor(image, grey, CV_BGR2GRAY);
+  else
+    grey = image.clone();
 
   tracker->detectorCascade->imgWidth = grey.cols;
   tracker->detectorCascade->imgHeight = grey.rows;
@@ -65,7 +67,6 @@ int main(int argc, char** argv){
   tracker->selectObject(grey, videoInfo->initRoi);
 
   videoInfo->cur = videoInfo->cur->next;
-  cout << "hi: " << videoInfo->cur << endl;
 
 
   Rect bb;
@@ -89,35 +90,39 @@ int main(int argc, char** argv){
         if (currOverlap > 0.5)
           tP ++;
         else
+        {
           fP ++;
+        }
       }
       else
       {
         fP ++;
       }
-
-
     }
     else
     {
       if (videoInfo->cur)
+      {
         fN ++;
+        //std::cout << fN << std::endl;
+      }
       else
         tN++;
     }
 
     if (videoInfo->cur) {
-      rectangle(image, videoInfo->cur->rect[0], Scalar( 0, 0, 255), 2, 1 );
-      cout << videoInfo->cur->rect[0] << endl;
+      //rectangle(image, videoInfo->cur->rect[0], Scalar( 0, 0, 255), 2, 1 );
+      //cout <<  videoInfo->cur->rect[0] << endl;
+      //cout <<  videoInfo->cur->next->rect[0] << endl;
       videoInfo->cur = videoInfo->cur->next;
       numFrame++;
     }
 
-    namedWindow("tracker", CV_WINDOW_AUTOSIZE);
+    //namedWindow("tracker", CV_WINDOW_AUTOSIZE);
     imshow("tracker", image);
 
     //quit on ESC button
-    if(waitKey(200000)==27)break;
+    if(waitKey(10)==27)break;
   }
 
   float prec = tP / (tP + fP), rec = tP / (tP + fN);
