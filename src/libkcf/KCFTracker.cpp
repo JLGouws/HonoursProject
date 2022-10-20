@@ -64,7 +64,7 @@ namespace KCF
           else
           {
               w = std::min({w, x + w, img.cols - x});
-              h = std::min({h, y + h, img.rows - h});
+              h = std::min({h, y + h, img.rows - y});
               x = std::max(x, .0f);
               y = std::max(y, .0f);
               return new Rect(x, y, w, h);
