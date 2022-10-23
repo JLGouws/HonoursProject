@@ -38,6 +38,7 @@ int main( int argc, char** argv ){
   Rect roi;
   int frameCount = 0;
   bool tracking = false;
+  char buff[10000];
   // create a tracker object
   tld::MultiTrack *tld = new tld::MultiTrack();
   // set input video
@@ -123,7 +124,7 @@ int main( int argc, char** argv ){
   vector<pair<Rect, pair<int, float>>> targets;
   chrono::steady_clock::time_point begin, end;
   begin = chrono::steady_clock::now();
-  for (;i <= 600; i++){
+  for (;i <= 700; i++){
     /*
     if(frameCount == 163){
       imshow("tracker", frame);
@@ -150,7 +151,7 @@ int main( int argc, char** argv ){
             color = Scalar( 0, 0, 255);
           break;
           case 2:
-            color = Scalar( 255, 0, 0);
+            color = Scalar( 255, 255, 255);
           break;
           case 3:
             color = Scalar( 255, 0, 255);
@@ -164,8 +165,9 @@ int main( int argc, char** argv ){
 
     //fprintf(out, "\n");
 
-    //imshow("tracker", frame);
-    //imwrite(string_format("/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i), frame);
+    imshow("tracker", frame);
+    sprintf(buff, "/home/jgouws/tldSourceCode/frames/tldOut/tldOUT%04d.jpg", i);
+    imwrite(buff, frame);
     /*
     // show image with the tracked object
     if(waitKey(5)==115) {

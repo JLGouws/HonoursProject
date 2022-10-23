@@ -141,6 +141,34 @@ float tldCalcVariance(float *value, int n)
 
 }
 
+float intersection(int *bb1, int *bb2)
+{
+
+    if(bb1[0] > bb2[0] + bb2[2])
+    {
+        return 0.0;
+    }
+
+    if(bb1[1] > bb2[1] + bb2[3])
+    {
+        return 0.0;
+    }
+
+    if(bb1[0] + bb1[2] < bb2[0])
+    {
+        return 0.0;
+    }
+
+    if(bb1[1] + bb1[3] < bb2[1])
+    {
+        return 0.0;
+    }
+
+    int colInt =  min(bb1[0] + bb1[2], bb2[0] + bb2[2]) - max(bb1[0], bb2[0]);
+    int rowInt =  min(bb1[1] + bb1[3], bb2[1] + bb2[3]) - max(bb1[1], bb2[1]);
+
+    return colInt * rowInt;
+}
 
 float tldBBOverlap(int *bb1, int *bb2)
 {
@@ -192,6 +220,16 @@ float tldOverlapRectRect(Rect r1, Rect r2)
     tldRectToArray<int>(r1, bb1);
     tldRectToArray<int>(r2, bb2);
     return tldBBOverlap(bb1, bb2);
+
+}
+
+float intersection(Rect r1, Rect r2)
+{
+    int bb1[4];
+    int bb2[4];
+    tldRectToArray<int>(r1, bb1);
+    tldRectToArray<int>(r2, bb2);
+    return intersection(bb1, bb2);
 
 }
 

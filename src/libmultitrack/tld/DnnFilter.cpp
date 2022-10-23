@@ -23,7 +23,7 @@ DnnFilter::DnnFilter(long frame = 0)
 {
     enabled = true;
     frameNumber = frame;
-    minOverlap = 0.75;
+    minOverlap = 0.65;
     minConfidence = 0.1;
     windows = NULL;
     sFaces = NULL;

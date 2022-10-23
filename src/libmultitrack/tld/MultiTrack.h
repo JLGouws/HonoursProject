@@ -89,6 +89,7 @@ class MultiTrack
       void learn(Target_t *t);
   //    void initialLearning();
       void initialLearning(Target_t *t);
+      bool compTargets(Target_t *a, Target_t *b);
 };
 
 } /* namespace tld */

@@ -109,6 +109,7 @@ cv::Rect *tldCopyRect(cv::Rect *r);
 
 //TODO: Change function names
 float tldOverlapRectRect(cv::Rect r1, cv::Rect r2);
+float intersection(cv::Rect r1, cv::Rect r2);
 float tldOverlapBBRect(int *bb1, cv::Rect r2);
 void tldOverlapOne(int *windows, int numWindows, int index, std::vector<int> * indices, float *overlap);
 void tldOverlap(int *windows, int numWindows, int *boundary, float *overlap);

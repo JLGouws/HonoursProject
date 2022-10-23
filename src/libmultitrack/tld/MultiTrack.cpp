@@ -257,6 +257,14 @@ void MultiTrack::processImage(const Mat &img)
       currImgGrey = img.clone();
     }
 
+    auto compTargets = [](Target_t *a, Target_t *b)
+    {
+        return a->currConf > b->currConf;
+    };
+
+    vector<Target_t *> validTargets;
+    vector<Target_t *>::iterator tg1, tg2;
+
     for (auto const& t : targets) {
       storeCurrentTarget(t);
 
@@ -272,8 +280,31 @@ void MultiTrack::processImage(const Mat &img)
 
       fuseHypotheses(t);
 
-      learn(t);
+      if(t->valid)
+        validTargets.insert(
+            upper_bound(validTargets.begin(), validTargets.end(), t, compTargets),
+            t
+        );
+
     }
+
+    for (tg1 = validTargets.begin(); tg1 != validTargets.end(); tg1++) 
+    {
+      for (tg2 = tg1 + 1; tg2 != validTargets.end(); tg2++) 
+      {
+        float inter = intersection(*(*tg1)->currBB, *(*tg2)->currBB);
+
+        if(inter > 0.2 * std::min((*tg1)->currBB->area(), (*tg2)->currBB->area())) {
+          (*tg2)->valid = false;
+          validTargets.erase(tg2);
+        }
+      }
+      cout << (*tg1)->currConf << endl;
+    }
+    cout << endl;
+
+    for (auto const& t : validTargets)
+      learn(t);
 
     frameNumber++;
 }
@@ -346,27 +377,13 @@ void MultiTrack::fuseHypotheses(Target_t *t)
             t->currBB = NULL;
         }
 
-        float maxOverlap = 0,
-              overlap = 0;
-
-        for (auto const& tg : targets) 
-        {
-          if (tg->currBB) {
-            overlap = tldOverlapRectRect(*tg->currBB, *detectorBB);
-            maxOverlap = overlap > maxOverlap ? overlap : maxOverlap;
-          }
-        }
-
-        if (maxOverlap < 0.1)
-        {
-          t->currBB = tldCopyRect(detectorBB);
-          t->currConf = confDetector;
-          t->valid = true;
-          //t->tracker->place(*detectorBB);
-          delete t->tracker;
-          t->tracker = new KCFTracker();
-          t->tracker->init(currImgGrey, *detectorBB);
-        }
+      t->currBB = tldCopyRect(detectorBB);
+        t->currConf = confDetector;
+        t->valid = true;
+        //t->tracker->place(*detectorBB);
+        delete t->tracker;
+        t->tracker = new KCFTracker();
+        t->tracker->init(currImgGrey, *detectorBB);
     }
 
     /*
